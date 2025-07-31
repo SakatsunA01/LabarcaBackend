@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\GaleriaEvento;
 use App\Models\Evento;
+use Illuminate\Support\Facades\Storage; // Importamos el facade Storage
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -24,7 +25,7 @@ class GaleriaEventoController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'id_evento' => 'required|exists:eventos,id',
-            'url_imagen' => 'required|string|max:255', // Podrías validar que sea una URL o manejar subida de archivos
+            'imagen_file' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Campo para el archivo de imagen
             'descripcion' => 'nullable|string|max:255',
         ]);
 
@@ -32,10 +33,10 @@ class GaleriaEventoController extends Controller
             return response()->json($validator->errors(), 400);
         }
 
-        // Si manejas subida de archivos, aquí iría la lógica para guardar el archivo
-        // y obtener la URL. Por ahora, asumimos que la URL se envía directamente.
+        $data = $request->except(['imagen_file']); // Excluimos el archivo para no asignarlo directamente
+        $data['url_imagen'] = $this->handleImageUpload($request, 'imagen_file'); // Guardamos el archivo y obtenemos la URL
 
-        $imagenGaleria = GaleriaEvento::create($request->all());
+        $imagenGaleria = GaleriaEvento::create($data);
         return response()->json($imagenGaleria, 201);
     }
 
@@ -56,7 +57,8 @@ class GaleriaEventoController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'url_imagen' => 'sometimes|required|string|max:255',
+            'id_evento' => 'sometimes|required|exists:eventos,id', // id_evento puede ser actualizado, pero no es común
+            'imagen_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Archivo opcional para la actualización
             'descripcion' => 'nullable|string|max:255',
         ]);
 
@@ -64,7 +66,19 @@ class GaleriaEventoController extends Controller
             return response()->json($validator->errors(), 400);
         }
 
-        $imagenGaleria->update($request->all());
+        $data = $request->except(['imagen_file', '_method']); // Excluimos el archivo y el método HTTP
+
+        // Manejamos la actualización del archivo de imagen
+        if ($request->hasFile('imagen_file')) {
+            $data['url_imagen'] = $this->handleImageUpload($request, 'imagen_file', $imagenGaleria->url_imagen);
+        } else if (array_key_exists('url_imagen', $request->all()) && ($request->input('url_imagen') === null || $request->input('url_imagen') === '')) {
+            // Si el frontend envía explícitamente url_imagen como null/cadena vacía, eliminamos el archivo antiguo
+            $this->deleteImage($imagenGaleria->url_imagen);
+            $data['url_imagen'] = null;
+        }
+
+        $imagenGaleria->update($data);
+
         return response()->json($imagenGaleria);
     }
 
@@ -74,8 +88,42 @@ class GaleriaEventoController extends Controller
         if (is_null($imagenGaleria)) {
             return response()->json(['message' => 'Imagen de galería no encontrada'], 404);
         }
-        // Opcional: eliminar el archivo físico si lo estás almacenando
+
+        // Eliminamos el archivo físico asociado
+        if ($imagenGaleria->url_imagen) {
+            $this->deleteImage($imagenGaleria->url_imagen);
+        }
+
         $imagenGaleria->delete();
         return response()->json(null, 204);
+    }
+
+    /**
+     * Método auxiliar para manejar la subida de imágenes.
+     * Almacena el archivo y devuelve su URL pública.
+     * Elimina el archivo antiguo si se proporciona.
+     */
+    private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)
+    {
+        if ($request->hasFile($fieldName)) {
+            if ($oldImagePath) {
+                $this->deleteImage($oldImagePath);
+            }
+            $path = $request->file($fieldName)->store('galeria_eventos', 'public'); // Almacenamos en la carpeta 'galeria_eventos'
+            return Storage::url($path);
+        }
+        return null;
+    }
+
+    /**
+     * Método auxiliar para eliminar un archivo de imagen del almacenamiento público.
+     */
+    private function deleteImage($imagePath)
+    {
+        if ($imagePath) {
+            // Convertimos la URL pública (/storage/...) a una ruta de almacenamiento (galeria_eventos/...)
+            $path = str_replace('/storage', '', $imagePath);
+            Storage::disk('public')->delete($path);
+        }
     }
 }

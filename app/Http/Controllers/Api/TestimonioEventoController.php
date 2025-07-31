@@ -59,7 +59,10 @@ class TestimonioEventoController extends Controller
             return response()->json(['message' => 'Testimonio no encontrado'], 404);
         }
 
-        // Aquí podrías añadir lógica de autorización, ej: solo el usuario que lo creó o un admin puede editar
+        // Lógica de autorización: solo un admin puede editar
+        if (!Auth::check() || !Auth::user()->admin_sn) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
 
         $validator = Validator::make($request->all(), [
             'comentario' => 'sometimes|required|string',
@@ -80,7 +83,10 @@ class TestimonioEventoController extends Controller
             return response()->json(['message' => 'Testimonio no encontrado'], 404);
         }
 
-        // Aquí podrías añadir lógica de autorización
+        // Lógica de autorización: solo un admin puede eliminar
+        if (!Auth::check() || !Auth::user()->admin_sn) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
 
         $testimonio->delete();
         return response()->json(null, 204);

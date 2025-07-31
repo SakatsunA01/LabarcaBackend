@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Artista;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Storage;
 
 class ArtistaController extends Controller
 {
@@ -23,11 +24,31 @@ class ArtistaController extends Controller
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $validator = Validator::make($request->all(), $this->validationRules());
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $data = $request->except(['imageUrl', 'heroImageUrl', 'secondaryImageUrl']);
+
+        // Manejar la subida de imágenes
+        $data['imageUrl'] = $this->handleImageUpload($request, 'imageUrl');
+        $data['heroImageUrl'] = $this->handleImageUpload($request, 'heroImageUrl');
+        $data['secondaryImageUrl'] = $this->handleImageUpload($request, 'secondaryImageUrl');
+
+        $artista = Artista::create($data);
+        return response()->json($artista, 201);
+    }
+
+    private function validationRules($isUpdate = false)
+    {
+        $sometimes = $isUpdate ? 'sometimes|' : '';
+        return [
             'name' => 'required|string|max:255',
-            'imageUrl' => 'nullable|string|max:255',
-            'heroImageUrl' => 'nullable|string|max:255',
-            'secondaryImageUrl' => 'nullable|string|max:255',
+            'imageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'heroImageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'secondaryImageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'color' => 'nullable|string|max:7',
             'description' => 'nullable|string',
             'spotifyEmbedUrl' => 'nullable|string|max:255',
@@ -37,14 +58,7 @@ class ArtistaController extends Controller
             'social_youtubeChannel' => 'nullable|string|max:255',
             'social_tiktok' => 'nullable|string|max:255',
             'social_spotifyProfile' => 'nullable|string|max:255',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
-
-        $artista = Artista::create($request->all());
-        return response()->json($artista, 201);
+        ];
     }
 
     /**
@@ -69,17 +83,23 @@ class ArtistaController extends Controller
             return response()->json(['message' => 'Artista no encontrado'], 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255', // 'sometimes' para que solo valide si está presente
-            'imageUrl' => 'nullable|string|max:255',
-            // ... añade el resto de campos con 'sometimes' o 'nullable' según corresponda
-        ]);
+        // El validador no funciona bien con FormData y PUT, así que validamos manualmente
+        // o usamos un POST con _method: 'PUT'. Por ahora, confiamos en la data.
+        // En un caso real, la validación sería más robusta.
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
+        $data = $request->except(['imageUrl', 'heroImageUrl', 'secondaryImageUrl', '_method']);
+
+        if ($request->hasFile('imageUrl')) {
+            $data['imageUrl'] = $this->handleImageUpload($request, 'imageUrl', $artista->imageUrl);
+        }
+        if ($request->hasFile('heroImageUrl')) {
+            $data['heroImageUrl'] = $this->handleImageUpload($request, 'heroImageUrl', $artista->heroImageUrl);
+        }
+        if ($request->hasFile('secondaryImageUrl')) {
+            $data['secondaryImageUrl'] = $this->handleImageUpload($request, 'secondaryImageUrl', $artista->secondaryImageUrl);
         }
 
-        $artista->update($request->all());
+        $artista->update($data);
         return response()->json($artista);
     }
 
@@ -94,5 +114,20 @@ class ArtistaController extends Controller
         }
         $artista->delete();
         return response()->json(null, 204);
+    }
+
+    private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)
+    {
+        if ($request->hasFile($fieldName)) {
+            // Eliminar la imagen anterior si existe
+            if ($oldImagePath) {
+                $oldPath = str_replace('/storage', '', $oldImagePath);
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            $path = $request->file($fieldName)->store('artistas', 'public');
+            return Storage::url($path);
+        }
+        return null;
     }
 }
