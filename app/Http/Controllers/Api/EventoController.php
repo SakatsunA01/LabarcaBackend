@@ -112,7 +112,7 @@ class EventoController extends Controller
             'link_compra' => 'nullable|url|max:255',
             'descripcion' => 'nullable|string',
             'lugar' => 'nullable|string|max:255',
-            'imagenUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'imagenUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
         ];
     }
 

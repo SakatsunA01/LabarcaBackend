@@ -46,9 +46,9 @@ class ArtistaController extends Controller
         $sometimes = $isUpdate ? 'sometimes|' : '';
         return [
             'name' => 'required|string|max:255',
-            'imageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'heroImageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'secondaryImageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'imageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
+            'heroImageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
+            'secondaryImageUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
             'color' => 'nullable|string|max:7',
             'description' => 'nullable|string',
             'spotifyEmbedUrl' => 'nullable|string|max:255',

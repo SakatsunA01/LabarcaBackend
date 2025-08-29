@@ -20,6 +20,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 // Authentication routes
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum'); // Protect logout
 
@@ -34,6 +35,12 @@ Route::apiResource('artistas', App\Http\Controllers\Api\ArtistaController::class
 
 // Rutas para Eventos
 Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class);
+
+// Rutas para Lanzamientos
+Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoController::class);
+
+// Custom route for latest releases
+Route::get('lanzamientos/latest', [App\Http\Controllers\Api\LanzamientoController::class, 'latest']);
 
 // Rutas para Testimonios de Eventos
 Route::get('eventos/{eventoId}/testimonios', [App\Http\Controllers\Api\TestimonioEventoController::class, 'indexForEvento']);
