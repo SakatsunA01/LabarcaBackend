@@ -25,7 +25,7 @@ class GaleriaEventoController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'id_evento' => 'required|exists:eventos,id',
-            'imagen_file' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Campo para el archivo de imagen
+            'imagen_file' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:10240', // Límite de 10MB
             'descripcion' => 'nullable|string|max:255',
         ]);
 
@@ -58,7 +58,7 @@ class GaleriaEventoController extends Controller
 
         $validator = Validator::make($request->all(), [
             'id_evento' => 'sometimes|required|exists:eventos,id', // id_evento puede ser actualizado, pero no es común
-            'imagen_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048', // Archivo opcional para la actualización
+            'imagen_file' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240', // Límite de 10MB
             'descripcion' => 'nullable|string|max:255',
         ]);
 

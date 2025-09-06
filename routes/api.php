@@ -3,6 +3,11 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController; // Import the new controller
+use App\Http\Controllers\Api\LikeController;
+use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\HeroSlideController;
+use App\Http\Controllers\Api\PrayerRequestController;
+use App\Http\Controllers\Api\UserController;
 
 /*
 |--------------------------------------------------------------------------
@@ -14,6 +19,10 @@ use App\Http\Controllers\Api\AuthController; // Import the new controller
 | be assigned to the "api" middleware group. Make something great!
 |
 */
+
+// Public routes
+Route::get('hero-slides', [HeroSlideController::class, 'index']);
+Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
@@ -37,10 +46,9 @@ Route::apiResource('artistas', App\Http\Controllers\Api\ArtistaController::class
 Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class);
 
 // Rutas para Lanzamientos
-Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoController::class);
-
 // Custom route for latest releases
 Route::get('lanzamientos/latest', [App\Http\Controllers\Api\LanzamientoController::class, 'latest']);
+Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoController::class);
 
 // Rutas para Testimonios de Eventos
 Route::get('eventos/{eventoId}/testimonios', [App\Http\Controllers\Api\TestimonioEventoController::class, 'indexForEvento']);
@@ -52,3 +60,40 @@ Route::delete('testimonios-eventos/{id}', [App\Http\Controllers\Api\TestimonioEv
 // Rutas para Galerías de Eventos
 Route::get('eventos/{eventoId}/galeria', [App\Http\Controllers\Api\GaleriaEventoController::class, 'indexForEvento']);
 Route::apiResource('galerias-eventos', App\Http\Controllers\Api\GaleriaEventoController::class)->except(['index']); // 'index' se maneja arriba
+
+// Rutas para Posts (Historias de la Comunidad)
+Route::get('posts/latest', [App\Http\Controllers\Api\PostController::class, 'latest']);
+Route::apiResource('posts', App\Http\Controllers\Api\PostController::class);
+
+// Rutas para Categorías
+Route::apiResource('categories', App\Http\Controllers\Api\CategoryController::class);
+
+// Rutas para Likes
+Route::post('posts/{post}/like', [LikeController::class, 'store']);
+Route::delete('posts/{post}/like', [LikeController::class, 'destroy']);
+
+// Rutas para Comentarios
+Route::post('posts/{post}/comments', [CommentController::class, 'store']);
+Route::delete('comments/{comment}', [CommentController::class, 'destroy']);
+
+// Rutas para Hero Slides
+// Rutas para Hero Slides (Públicas)
+Route::get('hero-slides', [HeroSlideController::class, 'index']);
+Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
+
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
+// Rutas para Hero Slides (Protegidas - si se necesitan)
+Route::middleware('auth:sanctum')->group(function () {
+    Route::apiResource('hero-slides', HeroSlideController::class)->except(['index']);
+    Route::post('prayer-requests', [PrayerRequestController::class, 'store']);
+});
+
+Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::get('admin/prayer-requests', [PrayerRequestController::class, 'indexAdmin']);
+    Route::put('admin/prayer-requests/{id}', [PrayerRequestController::class, 'update']);
+    Route::delete('admin/prayer-requests/{id}', [PrayerRequestController::class, 'destroy']);
+    Route::apiResource('admin/users', UserController::class)->except(['show', 'store']);
+});

@@ -30,11 +30,25 @@ class LanzamientoController extends Controller
             return response()->json($validator->errors(), 400);
         }
 
-        $data = $request->except(['cover_image_url']);
+        $data = $request->except(['cover_image_url', 'tracks']);
 
-        $data['cover_image_url'] = $this->handleImageUpload($request, 'cover_image_url');
+        if ($request->hasFile('cover_image_url')) {
+            $data['cover_image_url'] = $this->handleImageUpload($request, 'cover_image_url');
+        }
 
         $lanzamiento = Lanzamiento::create($data);
+
+        if ($request->has('tracks')) {
+            $tracks = json_decode($request->tracks, true);
+            if (is_array($tracks)) {
+                foreach ($tracks as $trackData) {
+                    $lanzamiento->tracks()->create($trackData);
+                }
+            }
+        }
+
+        $lanzamiento->load('tracks'); // Recargar la relación para devolverla
+
         return response()->json($lanzamiento, 201);
     }
 
@@ -60,13 +74,35 @@ class LanzamientoController extends Controller
             return response()->json(['message' => 'Lanzamiento no encontrado'], 404);
         }
 
-        $data = $request->except(['cover_image_url', '_method']);
+        $validator = Validator::make($request->all(), $this->validationRules(true));
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $data = $request->except(['cover_image_url', '_method', 'tracks']);
 
         if ($request->hasFile('cover_image_url')) {
             $data['cover_image_url'] = $this->handleImageUpload($request, 'cover_image_url', $lanzamiento->cover_image_url);
         }
 
         $lanzamiento->update($data);
+
+        // Sincronizar las pistas
+        if ($request->has('tracks')) {
+            $tracks = json_decode($request->tracks, true);
+            if (is_array($tracks)) {
+                // Eliminar pistas antiguas
+                $lanzamiento->tracks()->delete();
+                // Crear las nuevas pistas
+                foreach ($tracks as $trackData) {
+                    $lanzamiento->tracks()->create($trackData);
+                }
+            }
+        }
+
+        $lanzamiento->load('tracks');
+
         return response()->json($lanzamiento);
     }
 
@@ -98,6 +134,7 @@ class LanzamientoController extends Controller
             'cover_image_url' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
             'youtube_link' => 'nullable|string|max:255',
             'spotify_link' => 'nullable|string|max:255',
+            'tracks' => 'nullable|json',
         ];
     }
 
@@ -107,7 +144,7 @@ class LanzamientoController extends Controller
     public function latest()
     {
         // Get the 3 most recent releases, ordered by fecha_lanzamiento
-        $lanzamientos = Lanzamiento::with('tracks') // Eager load tracks
+        $lanzamientos = Lanzamiento::with('tracks', 'artista') // Eager load tracks and artista
                                 ->orderBy('fecha_lanzamiento', 'desc')
                                 ->take(3) // Changed from 5 to 3
                                 ->get();

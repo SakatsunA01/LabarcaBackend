@@ -28,9 +28,11 @@ class AuthController extends Controller
 
         if (Auth::attempt($credentials)) {
             $user = Auth::user();
+            $token = $user->createToken('auth_token')->plainTextToken;
             return response()->json([
                 'message' => 'Login successful',
                 'user' => $user,
+                'token' => $token,
             ]);
         }
 
@@ -57,12 +59,20 @@ class AuthController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'phone' => ['required', 'string', 'max:20'],
+            'belongs_to_church' => ['required', 'boolean'],
+            'church_name' => ['nullable', 'string', 'max:255', 'required_if:belongs_to_church,true'],
+            'pastor_name' => ['nullable', 'string', 'max:255', 'required_if:belongs_to_church,true'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
         ]);
 
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
+            'phone' => $request->phone,
+            'belongs_to_church' => $request->belongs_to_church,
+            'church_name' => $request->church_name,
+            'pastor_name' => $request->pastor_name,
             'password' => Hash::make($request->password),
             'admin_sn' => false,
         ]);
