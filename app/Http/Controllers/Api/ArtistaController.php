@@ -83,10 +83,6 @@ class ArtistaController extends Controller
             return response()->json(['message' => 'Artista no encontrado'], 404);
         }
 
-        // El validador no funciona bien con FormData y PUT, así que validamos manualmente
-        // o usamos un POST con _method: 'PUT'. Por ahora, confiamos en la data.
-        // En un caso real, la validación sería más robusta.
-
         $data = $request->except(['imageUrl', 'heroImageUrl', 'secondaryImageUrl', '_method']);
 
         if ($request->hasFile('imageUrl')) {
@@ -119,15 +115,25 @@ class ArtistaController extends Controller
     private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)
     {
         if ($request->hasFile($fieldName)) {
-            // Eliminar la imagen anterior si existe
+            // Borrar la imagen antigua si existe
             if ($oldImagePath) {
-                $oldPath = str_replace('/storage', '', $oldImagePath);
-                Storage::disk('public')->delete($oldPath);
+                // Construimos la ruta completa al archivo antiguo para poder borrarlo
+                $oldFilePath = public_path(str_replace('/storage/', 'storage/', $oldImagePath));
+                if (file_exists($oldFilePath)) {
+                    unlink($oldFilePath);
+                }
             }
-
-            $path = $request->file($fieldName)->store('artistas', 'public');
-            return Storage::url($path);
+    
+            $file = $request->file($fieldName);
+            $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
+            
+            // Movemos el archivo directamente a la carpeta public/storage/artistas
+            $file->move(public_path('storage/artistas'), $fileName);
+    
+            // Devolvemos la ruta pública que se guardará en la base de datos
+            return '/storage/artistas/' . $fileName;
         }
-        return null;
+    
+        return $oldImagePath;
     }
 }
