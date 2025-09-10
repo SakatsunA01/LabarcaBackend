@@ -108,6 +108,11 @@ class ArtistaController extends Controller
         if (is_null($artista)) {
             return response()->json(['message' => 'Artista no encontrado'], 404);
         }
+
+        $this->deleteImage($artista->imageUrl);
+        $this->deleteImage($artista->heroImageUrl);
+        $this->deleteImage($artista->secondaryImageUrl);
+
         $artista->delete();
         return response()->json(null, 204);
     }
@@ -115,25 +120,24 @@ class ArtistaController extends Controller
     private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)
     {
         if ($request->hasFile($fieldName)) {
-            // Borrar la imagen antigua si existe
             if ($oldImagePath) {
-                // Construimos la ruta completa al archivo antiguo para poder borrarlo
-                $oldFilePath = public_path(str_replace('/storage/', 'storage/', $oldImagePath));
-                if (file_exists($oldFilePath)) {
-                    unlink($oldFilePath);
-                }
+                $this->deleteImage($oldImagePath);
             }
-    
-            $file = $request->file($fieldName);
-            $fileName = uniqid() . '.' . $file->getClientOriginalExtension();
-            
-            // Movemos el archivo directamente a la carpeta public/storage/artistas
-            $file->move(public_path('storage/artistas'), $fileName);
-    
-            // Devolvemos la ruta pública que se guardará en la base de datos
-            return '/storage/artistas/' . $fileName;
+            $path = $request->file($fieldName)->store('artistas', 'public');
+            return Storage::url($path);
         }
-    
         return $oldImagePath;
+    }
+
+    private function deleteImage($imagePath)
+    {
+        if (!$imagePath) {
+            return;
+        }
+        $path = parse_url($imagePath, PHP_URL_PATH);
+        if ($path) {
+            $path = str_replace('/storage/', '', $path);
+            Storage::disk('public')->delete($path);
+        }
     }
 }
