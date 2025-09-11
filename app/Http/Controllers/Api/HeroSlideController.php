@@ -80,12 +80,7 @@ class HeroSlideController extends Controller
         $data = $request->except(['video', '_method']);
 
         if ($request->hasFile('video')) {
-            // Delete old video
-            if ($slide->video_path) {
-                $oldPath = str_replace('/storage', '', $slide->video_path);
-                Storage::disk('public')->delete($oldPath);
-            }
-            // Store new video
+            $this->deleteFile($slide->video_path);
             $path = $request->file('video')->store('hero_videos', 'public');
             $data['video_path'] = Storage::url($path);
         }
@@ -102,14 +97,22 @@ class HeroSlideController extends Controller
             return response()->json(['message' => 'Slide no encontrado'], 404);
         }
 
-        // Delete video file
-        if ($slide->video_path) {
-            $oldPath = str_replace('/storage', '', $slide->video_path);
-            Storage::disk('public')->delete($oldPath);
-        }
+        $this->deleteFile($slide->video_path);
 
         $slide->delete();
 
         return response()->json(null, 204);
+    }
+
+    private function deleteFile($filePath)
+    {
+        if (!$filePath) {
+            return;
+        }
+        $path = parse_url($filePath, PHP_URL_PATH);
+        if ($path) {
+$path = str_replace('/public/storage/', '', $path);
+            Storage::disk('public')->delete($path);
+        }
     }
 }

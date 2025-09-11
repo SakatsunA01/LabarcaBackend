@@ -115,11 +115,9 @@ class LanzamientoController extends Controller
         if (is_null($lanzamiento)) {
             return response()->json(['message' => 'Lanzamiento no encontrado'], 404);
         }
-        // Delete associated image if exists
-        if ($lanzamiento->cover_image_url) {
-            $oldPath = str_replace('/storage', '', $lanzamiento->cover_image_url);
-            Storage::disk('public')->delete($oldPath);
-        }
+
+        $this->deleteImage($lanzamiento->cover_image_url);
+
         $lanzamiento->delete();
         return response()->json(null, 204);
     }
@@ -154,15 +152,24 @@ class LanzamientoController extends Controller
     private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)
     {
         if ($request->hasFile($fieldName)) {
-            // Eliminar la imagen anterior si existe
             if ($oldImagePath) {
-                $oldPath = str_replace('/storage', '', $oldImagePath);
-                Storage::disk('public')->delete($oldPath);
+                $this->deleteImage($oldImagePath);
             }
-
             $path = $request->file($fieldName)->store('lanzamientos', 'public');
             return Storage::url($path);
         }
-        return null;
+        return $oldImagePath;
+    }
+
+    private function deleteImage($imagePath)
+    {
+        if (!$imagePath) {
+            return;
+        }
+        $path = parse_url($imagePath, PHP_URL_PATH);
+        if ($path) {
+$path = str_replace('/public/storage/', '', $path);
+            Storage::disk('public')->delete($path);
+        }
     }
 }

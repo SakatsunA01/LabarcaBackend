@@ -112,7 +112,7 @@ class GaleriaEventoController extends Controller
             $path = $request->file($fieldName)->store('galeria_eventos', 'public'); // Almacenamos en la carpeta 'galeria_eventos'
             return Storage::url($path);
         }
-        return null;
+        return $oldImagePath;
     }
 
     /**
@@ -120,9 +120,12 @@ class GaleriaEventoController extends Controller
      */
     private function deleteImage($imagePath)
     {
-        if ($imagePath) {
-            // Convertimos la URL pública (/storage/...) a una ruta de almacenamiento (galeria_eventos/...)
-            $path = str_replace('/storage', '', $imagePath);
+        if (!$imagePath) {
+            return;
+        }
+        $path = parse_url($imagePath, PHP_URL_PATH);
+        if ($path) {
+$path = str_replace('/public/storage/', '', $path);
             Storage::disk('public')->delete($path);
         }
     }

@@ -167,8 +167,12 @@ class PostController extends Controller
 
     private function deleteImage($imagePath)
     {
-        if ($imagePath) {
-            $path = str_replace('/storage', '', $imagePath);
+        if (!$imagePath) {
+            return;
+        }
+        $path = parse_url($imagePath, PHP_URL_PATH);
+        if ($path) {
+$path = str_replace('/public/storage/', '', $path);
             Storage::disk('public')->delete($path);
         }
     }

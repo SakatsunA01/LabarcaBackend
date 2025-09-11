@@ -121,15 +121,14 @@ class ArtistaController extends Controller
     {
         if ($request->hasFile($fieldName)) {
             if ($oldImagePath) {
-                $oldPath = str_replace('/storage/', '', $oldImagePath);
-                Storage::disk('public')->delete($oldPath);
+                $this->deleteImage($oldImagePath);
             }
             $path = $request->file($fieldName)->store('artistas', 'public');
             
             // Devolvemos la ruta relativa correcta para guardar en la BD
             return '/storage/' . $path;
         }
-        return $oldImagePath; // Si no se sube un archivo nuevo, mantenemos la ruta antigua
+        return $oldImagePath;
     }
 
     private function deleteImage($imagePath)
