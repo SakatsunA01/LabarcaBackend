@@ -83,10 +83,6 @@ class ArtistaController extends Controller
             return response()->json(['message' => 'Artista no encontrado'], 404);
         }
 
-        // El validador no funciona bien con FormData y PUT, así que validamos manualmente
-        // o usamos un POST con _method: 'PUT'. Por ahora, confiamos en la data.
-        // En un caso real, la validación sería más robusta.
-
         $data = $request->except(['imageUrl', 'heroImageUrl', 'secondaryImageUrl', '_method']);
 
         if ($request->hasFile('imageUrl')) {
@@ -112,6 +108,11 @@ class ArtistaController extends Controller
         if (is_null($artista)) {
             return response()->json(['message' => 'Artista no encontrado'], 404);
         }
+
+        $this->deleteImage($artista->imageUrl);
+        $this->deleteImage($artista->heroImageUrl);
+        $this->deleteImage($artista->secondaryImageUrl);
+
         $artista->delete();
         return response()->json(null, 204);
     }
@@ -123,12 +124,23 @@ class ArtistaController extends Controller
                 $oldPath = str_replace('/storage/', '', $oldImagePath);
                 Storage::disk('public')->delete($oldPath);
             }
-    
             $path = $request->file($fieldName)->store('artistas', 'public');
             
             // Devolvemos la ruta relativa correcta para guardar en la BD
             return '/storage/' . $path;
         }
         return $oldImagePath; // Si no se sube un archivo nuevo, mantenemos la ruta antigua
+    }
+
+    private function deleteImage($imagePath)
+    {
+        if (!$imagePath) {
+            return;
+        }
+        $path = parse_url($imagePath, PHP_URL_PATH);
+        if ($path) {
+            $path = str_replace('/public/storage/', '', $path);
+            Storage::disk('public')->delete($path);
+        }
     }
 }
