@@ -40,7 +40,7 @@ class HeroSlideController extends Controller
 
         if ($request->hasFile('video')) {
             $path = $request->file('video')->store('hero_videos', 'public');
-            $data['video_path'] = 'public/storage/' . $path;
+            $data['video_path'] = '/public/storage/' . $path;
         }
 
         $slide = HeroSlide::create($data);
@@ -82,7 +82,7 @@ class HeroSlideController extends Controller
         if ($request->hasFile('video')) {
             $this->deleteFile($slide->video_path);
             $path = $request->file('video')->store('hero_videos', 'public');
-            $data['video_path'] = 'public/storage/' . $path;
+            $data['video_path'] = '/public/storage/' . $path;
         }
 
         $slide->update($data);

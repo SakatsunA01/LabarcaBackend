@@ -128,7 +128,7 @@ class EventoController extends Controller
             }
 
             $path = $request->file($fieldName)->store('eventos', 'public');
-            return 'public/storage/' . $path;
+            return '/public/storage/' . $path;
         }
 
         // Si no se sube un archivo nuevo durante una actualización, se mantiene la ruta antigua.

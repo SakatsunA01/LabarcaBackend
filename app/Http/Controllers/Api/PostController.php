@@ -160,7 +160,7 @@ class PostController extends Controller
                 $this->deleteImage($oldImagePath);
             }
             $path = $request->file($fieldName)->store('posts_images', 'public');
-            return 'public/storage/' . $path;
+            return '/public/storage/' . $path;
         }
         return $oldImagePath; // Devuelve la imagen antigua si no se sube una nueva
     }
