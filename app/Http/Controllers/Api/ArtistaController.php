@@ -119,15 +119,16 @@ class ArtistaController extends Controller
     private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)
     {
         if ($request->hasFile($fieldName)) {
-            // Eliminar la imagen anterior si existe
             if ($oldImagePath) {
-                $oldPath = str_replace('/storage', '', $oldImagePath);
+                $oldPath = str_replace('/storage/', '', $oldImagePath);
                 Storage::disk('public')->delete($oldPath);
             }
-
+    
             $path = $request->file($fieldName)->store('artistas', 'public');
-            return Storage::url($path);
+            
+            // Devolvemos la ruta relativa correcta para guardar en la BD
+            return '/storage/' . $path;
         }
-        return null;
+        return $oldImagePath; // Si no se sube un archivo nuevo, mantenemos la ruta antigua
     }
 }
