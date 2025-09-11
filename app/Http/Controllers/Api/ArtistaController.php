@@ -126,7 +126,7 @@ class ArtistaController extends Controller
             $path = $request->file($fieldName)->store('artistas', 'public');
             
             // Devolvemos la ruta relativa correcta para guardar en la BD
-            return '/storage/' . $path;
+            return 'public/storage/' . $path;
         }
         return $oldImagePath;
     }

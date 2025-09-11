@@ -156,7 +156,7 @@ class LanzamientoController extends Controller
                 $this->deleteImage($oldImagePath);
             }
             $path = $request->file($fieldName)->store('lanzamientos', 'public');
-            return Storage::url($path);
+            return 'public/storage/' . $path;
         }
         return $oldImagePath;
     }

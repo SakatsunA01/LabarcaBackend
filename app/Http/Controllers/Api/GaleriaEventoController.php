@@ -110,7 +110,7 @@ class GaleriaEventoController extends Controller
                 $this->deleteImage($oldImagePath);
             }
             $path = $request->file($fieldName)->store('galeria_eventos', 'public'); // Almacenamos en la carpeta 'galeria_eventos'
-            return Storage::url($path);
+            return 'public/storage/' . $path;
         }
         return $oldImagePath;
     }
