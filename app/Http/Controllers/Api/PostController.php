@@ -172,7 +172,7 @@ class PostController extends Controller
         }
         $path = parse_url($imagePath, PHP_URL_PATH);
         if ($path) {
-            $path = str_replace('/storage/', '', $path);
+$path = str_replace('/public/storage/', '', $path);
             Storage::disk('public')->delete($path);
         }
     }
