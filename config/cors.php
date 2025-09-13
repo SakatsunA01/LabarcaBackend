@@ -19,11 +19,10 @@ return [
 
     'allowed_methods' => ['*'], // Puedes ser más específico si lo deseas, ej: ['GET', 'POST', 'PUT', 'DELETE']
 
-    'allowed_origins' => [
-        env('FRONTEND_URL', 'http://localhost:5173'), // Añade la URL de tu frontend Vue
-        // Puedes añadir más orígenes si es necesario
-        // 'http://tu-dominio-de-produccion.com'
-    ],
+    'allowed_origins' => array_filter([
+        env('FRONTEND_URL'),
+        env('FRONTEND_DEV_URL'),
+    ]),
 
     'allowed_origins_patterns' => [],
 
