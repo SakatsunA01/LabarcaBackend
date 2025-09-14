@@ -4,91 +4,100 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\TestimonioEvento;
-use App\Models\Evento;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 
 class TestimonioEventoController extends Controller
 {
-    // Listar testimonios para un evento específico
-    public function indexForEvento(string $eventoId)
+    /**
+     * Display a listing of the resource for a specific event.
+     */
+    public function indexForEvento($eventoId)
     {
-        if (!Evento::find($eventoId)) {
-            return response()->json(['message' => 'Evento no encontrado'], 404);
-        }
         $testimonios = TestimonioEvento::where('id_evento', $eventoId)->with('usuario')->get();
         return response()->json($testimonios);
     }
 
+    /**
+     * Store a newly created resource in storage.
+     */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $request->validate([
             'id_evento' => 'required|exists:eventos,id',
             'comentario' => 'required|string',
-            'nombre_usuario' => 'nullable|string|max:255', // Para usuarios no logueados
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
+        $user = Auth::user();
 
-        $data = $request->all();
-        if (Auth::check()) { // Si el usuario está autenticado (Sanctum)
-            $data['usuario_id'] = Auth::id();
-            $data['nombre_usuario'] = Auth::user()->name; // Opcional, si quieres guardar el nombre del usuario logueado
-        }
+        $testimonio = TestimonioEvento::create([
+            'id_evento' => $request->id_evento,
+            'comentario' => $request->comentario,
+            'usuario_id' => $user->id,
+            'nombre_usuario' => $user->name,
+        ]);
 
-        $testimonio = TestimonioEvento::create($data);
         return response()->json($testimonio, 201);
     }
 
-    public function show(string $id)
+    /**
+     * Display the specified resource.
+     */
+    public function show($id)
     {
         $testimonio = TestimonioEvento::with('usuario')->find($id);
-        if (is_null($testimonio)) {
+        if (!$testimonio) {
             return response()->json(['message' => 'Testimonio no encontrado'], 404);
         }
         return response()->json($testimonio);
     }
 
-    public function update(Request $request, string $id)
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(Request $request, $id)
     {
         $testimonio = TestimonioEvento::find($id);
-        if (is_null($testimonio)) {
+
+        if (!$testimonio) {
             return response()->json(['message' => 'Testimonio no encontrado'], 404);
         }
 
-        // Lógica de autorización: solo un admin puede editar
-        if (!Auth::check() || !Auth::user()->admin_sn) {
+        // Optional: Check if the user is authorized to update the testimony
+        if ($testimonio->usuario_id !== Auth::id()) {
             return response()->json(['message' => 'No autorizado'], 403);
         }
 
-        $validator = Validator::make($request->all(), [
-            'comentario' => 'sometimes|required|string',
+        $request->validate([
+            'comentario' => 'required|string',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json($validator->errors(), 400);
-        }
-
         $testimonio->update($request->only('comentario'));
+
         return response()->json($testimonio);
     }
 
-    public function destroy(string $id)
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy($id)
     {
         $testimonio = TestimonioEvento::find($id);
-        if (is_null($testimonio)) {
+
+        if (!$testimonio) {
             return response()->json(['message' => 'Testimonio no encontrado'], 404);
         }
 
-        // Lógica de autorización: solo un admin puede eliminar
-        if (!Auth::check() || !Auth::user()->admin_sn) {
-            return response()->json(['message' => 'No autorizado'], 403);
+        // Optional: Check if the user is authorized to delete the testimony
+        if ($testimonio->usuario_id !== Auth::id()) {
+            // o un admin
+            if (!Auth::user()->is_admin) {
+                return response()->json(['message' => 'No autorizado'], 403);
+            }
         }
 
         $testimonio->delete();
+
         return response()->json(null, 204);
     }
 }

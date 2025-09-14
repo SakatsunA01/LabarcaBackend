@@ -52,7 +52,7 @@ Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoControlle
 
 // Rutas para Testimonios de Eventos
 Route::get('eventos/{eventoId}/testimonios', [App\Http\Controllers\Api\TestimonioEventoController::class, 'indexForEvento']);
-Route::post('testimonios-eventos', [App\Http\Controllers\Api\TestimonioEventoController::class, 'store']); // POST /api/testimonios-eventos
+Route::post('testimonios-eventos', [App\Http\Controllers\Api\TestimonioEventoController::class, 'store'])->middleware('auth:sanctum'); // POST /api/testimonios-eventos
 Route::get('testimonios-eventos/{id}', [App\Http\Controllers\Api\TestimonioEventoController::class, 'show']);
 Route::put('testimonios-eventos/{id}', [App\Http\Controllers\Api\TestimonioEventoController::class, 'update'])->middleware('auth:sanctum');
 Route::delete('testimonios-eventos/{id}', [App\Http\Controllers\Api\TestimonioEventoController::class, 'destroy'])->middleware('auth:sanctum');
