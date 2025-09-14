@@ -7,6 +7,7 @@ return [
     'allowed_origins' => array_filter([
         env('FRONTEND_URL'),
         env('FRONTEND_DEV_URL'),
+        'https://labarcaministerio.com',
     ]),
 
     'allowed_origins_patterns' => [],
