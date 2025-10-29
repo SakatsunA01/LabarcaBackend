@@ -58,6 +58,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'birth_date' => ['required', 'date'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'phone' => ['required', 'string', 'max:20'],
             'belongs_to_church' => ['required', 'boolean'],
@@ -68,6 +69,7 @@ class AuthController extends Controller
 
         $user = User::create([
             'name' => $request->name,
+            'birth_date' => $request->birth_date,
             'email' => $request->email,
             'phone' => $request->phone,
             'belongs_to_church' => $request->belongs_to_church,

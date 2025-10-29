@@ -20,6 +20,17 @@ class UserController extends Controller
     }
 
     /**
+     * Display the specified resource.
+     */
+    public function show(User $user)
+    {
+        // The User model already has the password and remember_token hidden.
+        // We can add more relationships to load if needed, for example:
+        // $user->load('prayerRequests');
+        return response()->json($user);
+    }
+
+    /**
      * Update the specified resource in storage.
      */
     public function update(Request $request, string $id)
