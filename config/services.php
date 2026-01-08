@@ -31,4 +31,13 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'mercadopago' => [
+        'access_token' => env('MP_ACCESS_TOKEN'),
+        'public_key' => env('MP_PUBLIC_KEY'),
+        'notification_url' => env('MP_NOTIFICATION_URL'),
+        'success_url' => env('MP_SUCCESS_URL'),
+        'failure_url' => env('MP_FAILURE_URL'),
+        'pending_url' => env('MP_PENDING_URL'),
+    ],
+
 ];

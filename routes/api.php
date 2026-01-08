@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\HeroSlideController;
 use App\Http\Controllers\Api\PrayerRequestController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\TicketCheckoutController;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,6 +51,13 @@ Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class);
 // Custom route for latest releases
 Route::get('lanzamientos/latest', [App\Http\Controllers\Api\LanzamientoController::class, 'latest']);
 Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoController::class);
+
+// Rutas para Productos (Entradas)
+Route::apiResource('products', ProductController::class);
+
+// Checkout de Entradas (Mercado Pago)
+Route::post('ticket-checkout', [TicketCheckoutController::class, 'createPreference']);
+Route::post('mercadopago/webhook', [TicketCheckoutController::class, 'handleWebhook']);
 
 // Rutas para Testimonios de Eventos
 Route::get('eventos/{eventoId}/testimonios', [App\Http\Controllers\Api\TestimonioEventoController::class, 'indexForEvento']);

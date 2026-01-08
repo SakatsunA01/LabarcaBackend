@@ -9,7 +9,16 @@ class Evento extends Model
 {
     use HasFactory;
     protected $table = 'eventos';
-    protected $fillable = ['nombre', 'fecha', 'link_compra', 'descripcion', 'lugar', 'imagenUrl'];
+    protected $fillable = [
+        'nombre',
+        'fecha',
+        'link_compra',
+        'general_product_id',
+        'vip_product_id',
+        'descripcion',
+        'lugar',
+        'imagenUrl',
+    ];
 
     public function testimonios()
     {
@@ -19,5 +28,15 @@ class Evento extends Model
     public function galeria()
     {
         return $this->hasMany(GaleriaEvento::class, 'id_evento');
+    }
+
+    public function generalProduct()
+    {
+        return $this->belongsTo(Product::class, 'general_product_id');
+    }
+
+    public function vipProduct()
+    {
+        return $this->belongsTo(Product::class, 'vip_product_id');
     }
 }

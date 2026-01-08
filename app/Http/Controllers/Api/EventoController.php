@@ -45,7 +45,7 @@ class EventoController extends Controller
      */
     public function show(string $id)
     {
-        $evento = Evento::with(['testimonios', 'galeria'])->find($id); // Cargar relaciones
+        $evento = Evento::with(['testimonios', 'galeria', 'generalProduct', 'vipProduct'])->find($id); // Cargar relaciones
         if (is_null($evento)) {
             return response()->json(['message' => 'Evento no encontrado'], 404);
         }
@@ -110,6 +110,8 @@ class EventoController extends Controller
             'nombre' => $sometimes . 'required|string|max:255',
             'fecha' => $sometimes . 'required|date',
             'link_compra' => 'nullable|url|max:255',
+            'general_product_id' => 'nullable|exists:products,id',
+            'vip_product_id' => 'nullable|exists:products,id|different:general_product_id',
             'descripcion' => 'nullable|string',
             'lugar' => 'nullable|string|max:255',
             'imagenUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
