@@ -24,4 +24,19 @@ class TicketOrder extends Model
     protected $casts = [
         'unit_price_ars' => 'decimal:2',
     ];
+
+    public function event()
+    {
+        return $this->belongsTo(Evento::class, 'event_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class, 'product_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

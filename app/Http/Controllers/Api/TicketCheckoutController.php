@@ -17,6 +17,10 @@ class TicketCheckoutController extends Controller
 {
     public function createPreference(Request $request)
     {
+        if (!Auth::check()) {
+            return response()->json(['message' => 'Debes iniciar sesion para comprar.'], 401);
+        }
+
         $validator = Validator::make($request->all(), [
             'event_id' => 'required|exists:eventos,id',
             'product_id' => 'required|exists:products,id',

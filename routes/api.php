@@ -10,6 +10,8 @@ use App\Http\Controllers\Api\PrayerRequestController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\TicketCheckoutController;
+use App\Http\Controllers\Api\TicketOrderController;
+use App\Http\Controllers\Api\AdminTicketOrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -56,8 +58,13 @@ Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoControlle
 Route::apiResource('products', ProductController::class);
 
 // Checkout de Entradas (Mercado Pago)
-Route::post('ticket-checkout', [TicketCheckoutController::class, 'createPreference']);
 Route::post('mercadopago/webhook', [TicketCheckoutController::class, 'handleWebhook']);
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('ticket-checkout', [TicketCheckoutController::class, 'createPreference']);
+    Route::get('ticket-orders', [TicketOrderController::class, 'index']);
+    Route::get('ticket-orders/{id}', [TicketOrderController::class, 'show']);
+});
 
 // Rutas para Testimonios de Eventos
 Route::get('eventos/{eventoId}/testimonios', [App\Http\Controllers\Api\TestimonioEventoController::class, 'indexForEvento']);
@@ -105,4 +112,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('admin/prayer-requests/{id}', [PrayerRequestController::class, 'update']);
     Route::delete('admin/prayer-requests/{id}', [PrayerRequestController::class, 'destroy']);
     Route::apiResource('admin/users', UserController::class)->except(['show', 'store']);
+    Route::get('admin/ticket-orders', [AdminTicketOrderController::class, 'index']);
+    Route::get('admin/ticket-orders/{id}', [AdminTicketOrderController::class, 'show']);
 });
