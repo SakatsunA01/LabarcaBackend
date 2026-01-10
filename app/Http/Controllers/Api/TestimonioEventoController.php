@@ -6,16 +6,27 @@ use App\Http\Controllers\Controller;
 use App\Models\TestimonioEvento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class TestimonioEventoController extends Controller
 {
     /**
      * Display a listing of the resource for a specific event.
      */
-    public function indexForEvento($eventoId)
+    public function indexForEvento(Request $request, $eventoId)
     {
-        $testimonios = TestimonioEvento::where('id_evento', $eventoId)->with('usuario')->get();
-        return response()->json($testimonios);
+        $includePending = $request->boolean('include_pending');
+
+        if ($includePending && (!Auth::check() || !Auth::user()->admin_sn)) {
+            return response()->json(['message' => 'No autorizado'], 403);
+        }
+
+        $query = TestimonioEvento::where('id_evento', $eventoId)->with('usuario');
+        if (!$includePending) {
+            $query->where('approved', true);
+        }
+
+        return response()->json($query->get());
     }
 
     /**
@@ -26,15 +37,23 @@ class TestimonioEventoController extends Controller
         $request->validate([
             'id_evento' => 'required|exists:eventos,id',
             'comentario' => 'required|string',
+            'foto' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
         $user = Auth::user();
+
+        $fotoPath = null;
+        if ($request->hasFile('foto')) {
+            $fotoPath = $request->file('foto')->store('testimonios', 'public');
+        }
 
         $testimonio = TestimonioEvento::create([
             'id_evento' => $request->id_evento,
             'comentario' => $request->comentario,
             'usuario_id' => $user->id,
-            'nombre_usuario' => $user->name,
+            'nombre_usuario' => $request->nombre_usuario ?? $user->name,
+            'approved' => false,
+            'foto_path' => $fotoPath,
         ]);
 
         return response()->json($testimonio, 201);
@@ -90,10 +109,13 @@ class TestimonioEventoController extends Controller
 
         // Optional: Check if the user is authorized to delete the testimony
         if ($testimonio->usuario_id !== Auth::id()) {
-            // o un admin
-            if (!Auth::user()->is_admin) {
+            if (!Auth::check() || !Auth::user()->admin_sn) {
                 return response()->json(['message' => 'No autorizado'], 403);
             }
+        }
+
+        if ($testimonio->foto_path) {
+            Storage::disk('public')->delete($testimonio->foto_path);
         }
 
         $testimonio->delete();

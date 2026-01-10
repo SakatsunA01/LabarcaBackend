@@ -22,7 +22,7 @@ class Evento extends Model
 
     public function testimonios()
     {
-        return $this->hasMany(TestimonioEvento::class, 'id_evento');
+        return $this->hasMany(TestimonioEvento::class, 'id_evento')->where('approved', true);
     }
 
     public function galeria()
