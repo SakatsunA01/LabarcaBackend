@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\TicketCheckoutController;
 use App\Http\Controllers\Api\TicketOrderController;
 use App\Http\Controllers\Api\AdminTicketOrderController;
+use App\Http\Controllers\Api\SorteoController;
 
 /*
 |--------------------------------------------------------------------------
@@ -114,4 +115,11 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::apiResource('admin/users', UserController::class)->except(['show', 'store']);
     Route::get('admin/ticket-orders', [AdminTicketOrderController::class, 'index']);
     Route::get('admin/ticket-orders/{id}', [AdminTicketOrderController::class, 'show']);
+    Route::get('admin/sorteos', [SorteoController::class, 'index']);
+    Route::post('admin/sorteos', [SorteoController::class, 'store']);
+    Route::put('admin/sorteos/{sorteo}', [SorteoController::class, 'update']);
+    Route::delete('admin/sorteos/{sorteo}', [SorteoController::class, 'destroy']);
+    Route::get('admin/sorteos/{sorteo}/users', [SorteoController::class, 'users']);
+    Route::post('admin/sorteos/{sorteo}/participants', [SorteoController::class, 'addParticipants']);
+    Route::post('admin/sorteos/{sorteo}/close', [SorteoController::class, 'close']);
 });
