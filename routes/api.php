@@ -35,6 +35,7 @@ Route::get('sorteos', [SorteoController::class, 'publicIndex']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('socialAccounts');
 });
+Route::middleware('auth:sanctum')->put('/user', [AuthController::class, 'updateProfile']);
 
 // Authentication routes
 Route::post('/register', [AuthController::class, 'register']);
@@ -106,6 +107,7 @@ Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('socialAccounts');
 });
+Route::middleware('auth:sanctum')->put('/user', [AuthController::class, 'updateProfile']);
 
 // Rutas para Hero Slides (Protegidas - si se necesitan)
 Route::middleware('auth:sanctum')->group(function () {

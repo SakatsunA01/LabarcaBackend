@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
@@ -83,5 +84,55 @@ class AuthController extends Controller
             'message' => 'Registration successful',
             'user' => $user,
         ], 201);
+    }
+
+    /**
+     * Update the authenticated user's profile.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'birth_date' => ['sometimes', 'nullable', 'date'],
+            'email' => ['sometimes', 'string', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'phone' => ['sometimes', 'nullable', 'string', 'max:20'],
+            'belongs_to_church' => ['sometimes', 'boolean'],
+            'church_name' => ['nullable', 'string', 'max:255', 'required_if:belongs_to_church,true'],
+            'pastor_name' => ['nullable', 'string', 'max:255', 'required_if:belongs_to_church,true'],
+            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
+            'profile_incomplete' => ['sometimes', 'boolean'],
+        ]);
+
+        $data = $request->only([
+            'name',
+            'birth_date',
+            'email',
+            'phone',
+            'belongs_to_church',
+            'church_name',
+            'pastor_name',
+            'profile_incomplete',
+        ]);
+
+        if ($request->has('belongs_to_church') && !$request->boolean('belongs_to_church')) {
+            $data['church_name'] = null;
+            $data['pastor_name'] = null;
+        }
+
+        if ($request->filled('password')) {
+            $data['password'] = Hash::make($request->input('password'));
+        }
+
+        $user->update($data);
+
+        return response()->json([
+            'message' => 'Profile updated successfully',
+            'user' => $user->load('socialAccounts'),
+        ]);
     }
 }
