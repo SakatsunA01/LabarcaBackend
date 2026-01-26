@@ -39,4 +39,9 @@ class TicketOrder extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
+
+    public function checkins()
+    {
+        return $this->hasMany(TicketOrderCheckin::class);
+    }
 }
