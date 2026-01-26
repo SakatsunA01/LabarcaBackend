@@ -23,6 +23,15 @@ class SorteoController extends Controller
         return response()->json($sorteos->map(fn (Sorteo $sorteo) => $this->formatSorteo($sorteo)));
     }
 
+    public function publicIndex()
+    {
+        $sorteos = Sorteo::with('ganador')
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json($sorteos->map(fn (Sorteo $sorteo) => $this->formatPublicSorteo($sorteo)));
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -208,6 +217,22 @@ class SorteoController extends Controller
         return $data;
     }
 
+    private function formatPublicSorteo(Sorteo $sorteo): array
+    {
+        $data = $sorteo->toArray();
+        $snapshot = $sorteo->ganador_snapshot ?? [];
+        $winner = $sorteo->ganador;
+        $data['ganador'] = $winner
+            ? ['name' => $winner->name]
+            : ($snapshot ? ['name' => $snapshot['name'] ?? null] : null);
+
+        $participants = $this->buildPublicParticipants($sorteo);
+        $data['participants_preview'] = $participants['preview'];
+        $data['participants_count'] = $participants['count'];
+
+        return $data;
+    }
+
     private function normalizeRequirements($value): array
     {
         if (is_array($value)) {
@@ -220,6 +245,38 @@ class SorteoController extends Controller
             }
         }
         return [];
+    }
+
+    private function buildPublicParticipants(Sorteo $sorteo, int $limit = 30): array
+    {
+        $manualIds = SorteoParticipant::where('sorteo_id', $sorteo->id)
+            ->pluck('user_id')
+            ->all();
+        $manualLookup = array_fill_keys($manualIds, true);
+
+        [$registrationRule, $ticketRule] = $this->extractRules($sorteo);
+        $ticketUserLookup = $this->buildTicketUserLookup($sorteo, $ticketRule);
+
+        $count = 0;
+        $preview = [];
+
+        User::select('id', 'name', 'created_at')
+            ->orderBy('id')
+            ->chunkById(500, function ($users) use (&$count, &$preview, $limit, $manualLookup, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup) {
+                foreach ($users as $user) {
+                    $isParticipant = isset($manualLookup[$user->id]);
+                    $eligible = $this->isUserEligible($user, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup);
+                    if (!$eligible && !$isParticipant) {
+                        continue;
+                    }
+                    $count++;
+                    if (count($preview) < $limit) {
+                        $preview[] = $user->name;
+                    }
+                }
+            });
+
+        return ['count' => $count, 'preview' => $preview];
     }
 
     private function extractRules(Sorteo $sorteo): array

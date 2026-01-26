@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\SorteoController;
 // Public routes
 Route::get('hero-slides', [HeroSlideController::class, 'index']);
 Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
+Route::get('sorteos', [SorteoController::class, 'publicIndex']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
