@@ -40,4 +40,8 @@ return [
         'pending_url' => env('MP_PENDING_URL'),
     ],
 
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+    ],
+
 ];

@@ -28,6 +28,7 @@ class User extends Authenticatable
         'belongs_to_church',
         'church_name',
         'pastor_name',
+        'profile_incomplete',
     ];
 
     /**
@@ -49,6 +50,7 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
         'belongs_to_church' => 'boolean',
+        'profile_incomplete' => 'boolean',
     ];
 
     /**
@@ -73,5 +75,13 @@ class User extends Authenticatable
     public function prayerRequests(): HasMany
     {
         return $this->hasMany(PrayerRequest::class);
+    }
+
+    /**
+     * Get all social accounts for the user.
+     */
+    public function socialAccounts(): HasMany
+    {
+        return $this->hasMany(UserSocialAccount::class);
     }
 }

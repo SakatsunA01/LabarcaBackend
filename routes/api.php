@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\TicketOrderController;
 use App\Http\Controllers\Api\AdminTicketOrderController;
 use App\Http\Controllers\Api\SorteoController;
 use App\Http\Controllers\Api\TicketVerificationController;
+use App\Http\Controllers\Api\SocialAuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,12 +33,14 @@ Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
 Route::get('sorteos', [SorteoController::class, 'publicIndex']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+    return $request->user()->load('socialAccounts');
 });
 
 // Authentication routes
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/google', [SocialAuthController::class, 'google']);
+Route::post('/auth/google/link', [SocialAuthController::class, 'linkGoogle'])->middleware('auth:sanctum');
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum'); // Protect logout
 
 // Rutas para Artistas
@@ -101,7 +104,7 @@ Route::get('hero-slides', [HeroSlideController::class, 'index']);
 Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
+    return $request->user()->load('socialAccounts');
 });
 
 // Rutas para Hero Slides (Protegidas - si se necesitan)
