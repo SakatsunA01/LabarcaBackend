@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\AdminTicketOrderController;
 use App\Http\Controllers\Api\SorteoController;
 use App\Http\Controllers\Api\TicketVerificationController;
 use App\Http\Controllers\Api\SocialAuthController;
+use App\Http\Controllers\Api\PromoVideoController;
+use App\Http\Controllers\Api\PromoInquiryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +33,9 @@ use App\Http\Controllers\Api\SocialAuthController;
 Route::get('hero-slides', [HeroSlideController::class, 'index']);
 Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
 Route::get('sorteos', [SorteoController::class, 'publicIndex']);
+Route::get('promo-video', [PromoVideoController::class, 'showPublic']);
+Route::get('promo-video/stream', [PromoVideoController::class, 'stream']);
+Route::post('promo-inquiries', [PromoInquiryController::class, 'store']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('socialAccounts');
@@ -130,4 +135,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/sorteos/{sorteo}/users', [SorteoController::class, 'users']);
     Route::post('admin/sorteos/{sorteo}/participants', [SorteoController::class, 'addParticipants']);
     Route::post('admin/sorteos/{sorteo}/close', [SorteoController::class, 'close']);
+    Route::get('admin/promo-video', [PromoVideoController::class, 'showAdmin']);
+    Route::post('admin/promo-video', [PromoVideoController::class, 'update']);
+    Route::get('admin/promo-inquiries', [PromoInquiryController::class, 'index']);
+    Route::delete('admin/promo-inquiries/{promoInquiry}', [PromoInquiryController::class, 'destroy']);
 });
