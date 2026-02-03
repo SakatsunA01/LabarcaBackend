@@ -18,6 +18,18 @@ class Evento extends Model
         'descripcion',
         'lugar',
         'imagenUrl',
+        'countdown_enabled',
+        'countdown_title',
+        'countdown_subtitle',
+        'pilar_experiencia',
+        'pilar_autoridad',
+        'pilar_mensaje',
+        'lineup_artist_ids',
+    ];
+
+    protected $casts = [
+        'countdown_enabled' => 'boolean',
+        'lineup_artist_ids' => 'array',
     ];
 
     public function testimonios()

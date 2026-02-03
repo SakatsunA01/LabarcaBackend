@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Artista;
 use App\Models\Evento;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -32,6 +33,16 @@ class EventoController extends Controller
         }
 
         $data = $request->except(['imagenUrl']);
+        $lineupArtistIds = $this->parseLineupArtistIds($request->input('lineup_artist_ids'));
+        if (is_null($lineupArtistIds)) {
+            return response()->json(['lineup_artist_ids' => ['Formato invalido para lineup_artist_ids']], 400);
+        }
+        if (!$this->lineupArtistsExist($lineupArtistIds)) {
+            return response()->json(['lineup_artist_ids' => ['Algunos artistas seleccionados no existen']], 400);
+        }
+        $data['lineup_artist_ids'] = $lineupArtistIds;
+        $data['countdown_enabled'] = $request->boolean('countdown_enabled', true);
+
         if ($request->hasFile('imagenUrl')) {
             $data['imagenUrl'] = $this->handleImageUpload($request, 'imagenUrl');
         }
@@ -49,7 +60,11 @@ class EventoController extends Controller
         if (is_null($evento)) {
             return response()->json(['message' => 'Evento no encontrado'], 404);
         }
-        return response()->json($evento);
+
+        $payload = $evento->toArray();
+        $payload['artistas'] = $this->resolveLineupArtists($evento->lineup_artist_ids ?? []);
+
+        return response()->json($payload);
     }
 
     /**
@@ -69,6 +84,19 @@ class EventoController extends Controller
         }
 
         $data = $request->except(['imagenUrl', '_method']);
+        if ($request->has('lineup_artist_ids')) {
+            $lineupArtistIds = $this->parseLineupArtistIds($request->input('lineup_artist_ids'));
+            if (is_null($lineupArtistIds)) {
+                return response()->json(['lineup_artist_ids' => ['Formato invalido para lineup_artist_ids']], 400);
+            }
+            if (!$this->lineupArtistsExist($lineupArtistIds)) {
+                return response()->json(['lineup_artist_ids' => ['Algunos artistas seleccionados no existen']], 400);
+            }
+            $data['lineup_artist_ids'] = $lineupArtistIds;
+        }
+        if ($request->has('countdown_enabled')) {
+            $data['countdown_enabled'] = $request->boolean('countdown_enabled');
+        }
 
         if ($request->hasFile('imagenUrl')) {
             $data['imagenUrl'] = $this->handleImageUpload($request, 'imagenUrl', $evento->imagenUrl);
@@ -115,7 +143,66 @@ class EventoController extends Controller
             'descripcion' => 'nullable|string',
             'lugar' => 'nullable|string|max:255',
             'imagenUrl' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
+            'countdown_enabled' => 'nullable|boolean',
+            'countdown_title' => 'nullable|string|max:120',
+            'countdown_subtitle' => 'nullable|string|max:255',
+            'pilar_experiencia' => 'nullable|string',
+            'pilar_autoridad' => 'nullable|string',
+            'pilar_mensaje' => 'nullable|string',
+            'lineup_artist_ids' => 'nullable',
         ];
+    }
+
+    private function parseLineupArtistIds($value): ?array
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+                return null;
+            }
+            $value = $decoded;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        return array_values(
+            array_unique(
+                array_filter(
+                    array_map(fn ($id) => (int) $id, $value),
+                    fn ($id) => $id > 0
+                )
+            )
+        );
+    }
+
+    private function lineupArtistsExist(array $artistIds): bool
+    {
+        if (empty($artistIds)) {
+            return true;
+        }
+
+        return Artista::whereIn('id', $artistIds)->count() === count($artistIds);
+    }
+
+    private function resolveLineupArtists(array $artistIds): array
+    {
+        if (empty($artistIds)) {
+            return [];
+        }
+
+        $artists = Artista::whereIn('id', $artistIds)->get()->keyBy('id');
+
+        return collect($artistIds)
+            ->map(fn ($artistId) => $artists->get($artistId))
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**
