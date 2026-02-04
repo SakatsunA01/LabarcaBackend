@@ -24,11 +24,16 @@ class Evento extends Model
         'pilar_experiencia',
         'pilar_autoridad',
         'pilar_mensaje',
+        'pilar_experiencia_icon',
+        'pilar_autoridad_icon',
+        'pilar_mensaje_icon',
+        'cronograma',
         'lineup_artist_ids',
     ];
 
     protected $casts = [
         'countdown_enabled' => 'boolean',
+        'cronograma' => 'array',
         'lineup_artist_ids' => 'array',
     ];
 

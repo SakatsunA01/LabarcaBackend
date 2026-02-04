@@ -41,6 +41,11 @@ class EventoController extends Controller
             return response()->json(['lineup_artist_ids' => ['Algunos artistas seleccionados no existen']], 400);
         }
         $data['lineup_artist_ids'] = $lineupArtistIds;
+        $cronograma = $this->parseCronograma($request->input('cronograma'));
+        if (is_null($cronograma)) {
+            return response()->json(['cronograma' => ['Formato invalido para cronograma']], 400);
+        }
+        $data['cronograma'] = $cronograma;
         $data['countdown_enabled'] = $request->boolean('countdown_enabled', true);
 
         if ($request->hasFile('imagenUrl')) {
@@ -62,7 +67,28 @@ class EventoController extends Controller
         }
 
         $payload = $evento->toArray();
-        $payload['artistas'] = $this->resolveLineupArtists($evento->lineup_artist_ids ?? []);
+        $payload['countdown_settings'] = [
+            'active' => (bool) ($evento->countdown_enabled ?? true),
+            'title' => $evento->countdown_title ?: 'Cuenta regresiva',
+            'subtitle' => $evento->countdown_subtitle ?: 'Empieza en',
+        ];
+        $payload['bento_pillars'] = [
+            'experiencia' => $evento->pilar_experiencia ?: '',
+            'autoridad' => $evento->pilar_autoridad ?: '',
+            'mensaje' => $evento->pilar_mensaje ?: '',
+            'icon_experiencia' => $evento->pilar_experiencia_icon ?: '✨',
+            'icon_autoridad' => $evento->pilar_autoridad_icon ?: '🏛️',
+            'icon_mensaje' => $evento->pilar_mensaje_icon ?: '💬',
+        ];
+        $payload['lineup'] = $this->resolveLineupArtists($evento->lineup_artist_ids ?? []);
+        $payload['cronograma'] = collect($evento->cronograma ?? [])->map(function ($item) {
+            return [
+                'hora' => $item['hora'] ?? null,
+                'actividad' => $item['actividad'] ?? null,
+                'titulo' => $item['actividad'] ?? null,
+            ];
+        })->values()->all();
+        $payload['artistas'] = $payload['lineup'];
 
         return response()->json($payload);
     }
@@ -96,6 +122,13 @@ class EventoController extends Controller
         }
         if ($request->has('countdown_enabled')) {
             $data['countdown_enabled'] = $request->boolean('countdown_enabled');
+        }
+        if ($request->has('cronograma')) {
+            $cronograma = $this->parseCronograma($request->input('cronograma'));
+            if (is_null($cronograma)) {
+                return response()->json(['cronograma' => ['Formato invalido para cronograma']], 400);
+            }
+            $data['cronograma'] = $cronograma;
         }
 
         if ($request->hasFile('imagenUrl')) {
@@ -149,6 +182,10 @@ class EventoController extends Controller
             'pilar_experiencia' => 'nullable|string',
             'pilar_autoridad' => 'nullable|string',
             'pilar_mensaje' => 'nullable|string',
+            'pilar_experiencia_icon' => 'nullable|string|max:32',
+            'pilar_autoridad_icon' => 'nullable|string|max:32',
+            'pilar_mensaje_icon' => 'nullable|string|max:32',
+            'cronograma' => 'nullable',
             'lineup_artist_ids' => 'nullable',
         ];
     }
@@ -199,8 +236,60 @@ class EventoController extends Controller
         $artists = Artista::whereIn('id', $artistIds)->get()->keyBy('id');
 
         return collect($artistIds)
-            ->map(fn ($artistId) => $artists->get($artistId))
+            ->map(function ($artistId) use ($artists) {
+                $artist = $artists->get($artistId);
+                if (!$artist) {
+                    return null;
+                }
+
+                return [
+                    'id' => $artist->id,
+                    'name' => $artist->name,
+                    'role' => null,
+                    'summary' => $artist->description,
+                    'image' => $artist->imageUrl,
+                    'spotifyUrl' => $artist->social_spotifyProfile ?: $artist->spotifyEmbedUrl,
+                    'youtubeUrl' => $artist->social_youtubeChannel ?: $artist->youtubeVideoId,
+                    'followers' => $artist->followers_count ?? $artist->followers ?? null,
+                ];
+            })
             ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function parseCronograma($value): ?array
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+                return null;
+            }
+            $value = $decoded;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        return collect($value)
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return null;
+                }
+
+                return [
+                    'hora' => isset($item['hora']) ? trim((string) $item['hora']) : '',
+                    'actividad' => isset($item['actividad'])
+                        ? trim((string) $item['actividad'])
+                        : trim((string) ($item['titulo'] ?? '')),
+                ];
+            })
+            ->filter(fn ($item) => $item && ($item['hora'] !== '' || $item['actividad'] !== ''))
             ->values()
             ->all();
     }
@@ -235,7 +324,7 @@ class EventoController extends Controller
         }
         $path = parse_url($imagePath, PHP_URL_PATH);
         if ($path) {
-$path = str_replace('/public/storage/', '', $path);
+            $path = str_replace('/public/storage/', '', $path);
             Storage::disk('public')->delete($path);
         }
     }
