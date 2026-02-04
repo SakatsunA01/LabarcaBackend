@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ArtistCategory;
 
 class Artista extends Model
 {
@@ -14,6 +15,7 @@ class Artista extends Model
     // Campos que se pueden asignar masivamente
     protected $fillable = [
         'name',
+        'vinculacion',
         'imageUrl',
         'heroImageUrl',
         'secondaryImageUrl',
@@ -27,6 +29,15 @@ class Artista extends Model
         'social_tiktok',
         'social_spotifyProfile',
     ];
+
+    protected $casts = [
+        'vinculacion' => 'string',
+    ];
+
+    public function categories()
+    {
+        return $this->belongsToMany(ArtistCategory::class, 'artist_category_pivot', 'artist_id', 'category_id');
+    }
 
     // Laravel maneja created_at y updated_at por defecto si los campos existen
     // y son de tipo TIMESTAMP. Si no quieres que Laravel los maneje:

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\TicketVerificationController;
 use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\PromoVideoController;
 use App\Http\Controllers\Api\PromoInquiryController;
+use App\Http\Controllers\Api\ArtistCategoryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -51,6 +52,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanc
 
 // Rutas para Artistas
 Route::apiResource('artistas', App\Http\Controllers\Api\ArtistaController::class);
+Route::apiResource('artist-categories', ArtistCategoryController::class);
 // Esto crea automáticamente las siguientes rutas:
 // GET /api/artistas -> ArtistaController@index
 // POST /api/artistas -> ArtistaController@store
