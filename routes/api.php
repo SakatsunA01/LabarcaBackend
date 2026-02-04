@@ -129,6 +129,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::apiResource('admin/users', UserController::class)->except(['show', 'store']);
     Route::get('admin/ticket-orders', [AdminTicketOrderController::class, 'index']);
     Route::get('admin/ticket-orders/{id}', [AdminTicketOrderController::class, 'show']);
+    Route::post('admin/ticket-orders/{id}/approve-cash', [AdminTicketOrderController::class, 'approveCash']);
     Route::post('admin/ticket-orders/verify', [TicketVerificationController::class, 'verify']);
     Route::get('admin/sorteos', [SorteoController::class, 'index']);
     Route::post('admin/sorteos', [SorteoController::class, 'store']);

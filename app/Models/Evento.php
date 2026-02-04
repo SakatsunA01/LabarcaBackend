@@ -29,12 +29,16 @@ class Evento extends Model
         'pilar_mensaje_icon',
         'cronograma',
         'lineup_artist_ids',
+        'pickup_points',
+        'cash_whatsapp_url',
+        'cash_instructions',
     ];
 
     protected $casts = [
         'countdown_enabled' => 'boolean',
         'cronograma' => 'array',
         'lineup_artist_ids' => 'array',
+        'pickup_points' => 'array',
     ];
 
     public function testimonios()

@@ -16,10 +16,12 @@ class Product extends Model
         'stock',
         'image_url',
         'is_active',
+        'promotions',
     ];
 
     protected $casts = [
         'price_ars' => 'decimal:2',
         'is_active' => 'boolean',
+        'promotions' => 'array',
     ];
 }

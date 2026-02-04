@@ -30,6 +30,13 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['image_url']);
+        if ($request->has('promotions')) {
+            $promotions = $this->parsePromotions($request->input('promotions'));
+            if (is_null($promotions)) {
+                return response()->json(['promotions' => ['Formato invalido para promociones']], 400);
+            }
+            $data['promotions'] = $promotions;
+        }
         if ($request->hasFile('image_url')) {
             $data['image_url'] = $this->handleImageUpload($request, 'image_url');
         }
@@ -66,6 +73,13 @@ class ProductController extends Controller
         }
 
         $data = $request->except(['image_url', '_method']);
+        if ($request->has('promotions')) {
+            $promotions = $this->parsePromotions($request->input('promotions'));
+            if (is_null($promotions)) {
+                return response()->json(['promotions' => ['Formato invalido para promociones']], 400);
+            }
+            $data['promotions'] = $promotions;
+        }
         if ($request->hasFile('image_url')) {
             $data['image_url'] = $this->handleImageUpload($request, 'image_url', $product->image_url);
         }
@@ -98,8 +112,55 @@ class ProductController extends Controller
             'price_ars' => $sometimes . 'required|numeric|min:0',
             'stock' => $sometimes . 'required|integer|min:0',
             'is_active' => 'nullable|boolean',
+            'promotions' => 'nullable',
             'image_url' => $sometimes . 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:10240',
         ];
+    }
+
+    private function parsePromotions($value): ?array
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+                return null;
+            }
+            $value = $decoded;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        return collect($value)
+            ->map(function ($item, $index) {
+                if (!is_array($item)) return null;
+
+                $type = trim((string) ($item['type'] ?? 'buy_x_get_y'));
+                if ($type !== 'buy_x_get_y') return null;
+
+                $buyQty = (int) ($item['buy_qty'] ?? 0);
+                $freeQty = (int) ($item['free_qty'] ?? 0);
+                $isActive = array_key_exists('is_active', $item) ? (bool) $item['is_active'] : true;
+                $label = trim((string) ($item['label'] ?? "{$buyQty} + {$freeQty}"));
+
+                if ($buyQty <= 0 || $freeQty <= 0) return null;
+
+                return [
+                    'id' => $item['id'] ?? "promo-" . ($index + 1),
+                    'type' => 'buy_x_get_y',
+                    'buy_qty' => $buyQty,
+                    'free_qty' => $freeQty,
+                    'label' => $label,
+                    'is_active' => $isActive,
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     private function handleImageUpload(Request $request, $fieldName, $oldImagePath = null)

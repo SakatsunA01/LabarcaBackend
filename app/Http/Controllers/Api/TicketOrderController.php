@@ -11,6 +11,8 @@ class TicketOrderController extends Controller
 {
     public function index(Request $request)
     {
+        TicketOrder::expirePendingCashOrders();
+
         $user = $request->user();
         $orders = TicketOrder::with(['event', 'product'])
             ->where('user_id', $user->id)
@@ -28,6 +30,8 @@ class TicketOrderController extends Controller
 
     public function show(Request $request, string $id)
     {
+        TicketOrder::expirePendingCashOrders();
+
         $user = $request->user();
         $order = TicketOrder::with(['event', 'product'])
             ->where('user_id', $user->id)

@@ -46,6 +46,11 @@ class EventoController extends Controller
             return response()->json(['cronograma' => ['Formato invalido para cronograma']], 400);
         }
         $data['cronograma'] = $cronograma;
+        $pickupPoints = $this->parsePickupPoints($request->input('pickup_points'));
+        if (is_null($pickupPoints)) {
+            return response()->json(['pickup_points' => ['Formato invalido para pickup_points']], 400);
+        }
+        $data['pickup_points'] = $pickupPoints;
         $data['countdown_enabled'] = $request->boolean('countdown_enabled', true);
 
         if ($request->hasFile('imagenUrl')) {
@@ -89,6 +94,11 @@ class EventoController extends Controller
             ];
         })->values()->all();
         $payload['artistas'] = $payload['lineup'];
+        $payload['cash_settings'] = [
+            'whatsapp_url' => $evento->cash_whatsapp_url,
+            'instructions' => $evento->cash_instructions,
+            'pickup_points' => $evento->pickup_points ?? [],
+        ];
 
         return response()->json($payload);
     }
@@ -129,6 +139,13 @@ class EventoController extends Controller
                 return response()->json(['cronograma' => ['Formato invalido para cronograma']], 400);
             }
             $data['cronograma'] = $cronograma;
+        }
+        if ($request->has('pickup_points')) {
+            $pickupPoints = $this->parsePickupPoints($request->input('pickup_points'));
+            if (is_null($pickupPoints)) {
+                return response()->json(['pickup_points' => ['Formato invalido para pickup_points']], 400);
+            }
+            $data['pickup_points'] = $pickupPoints;
         }
 
         if ($request->hasFile('imagenUrl')) {
@@ -187,6 +204,9 @@ class EventoController extends Controller
             'pilar_mensaje_icon' => 'nullable|string|max:32',
             'cronograma' => 'nullable',
             'lineup_artist_ids' => 'nullable',
+            'pickup_points' => 'nullable',
+            'cash_whatsapp_url' => 'nullable|url|max:500',
+            'cash_instructions' => 'nullable|string',
         ];
     }
 
@@ -290,6 +310,47 @@ class EventoController extends Controller
                 ];
             })
             ->filter(fn ($item) => $item && ($item['hora'] !== '' || $item['actividad'] !== ''))
+            ->values()
+            ->all();
+    }
+
+    private function parsePickupPoints($value): ?array
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+                return null;
+            }
+            $value = $decoded;
+        }
+
+        if (!is_array($value)) {
+            return null;
+        }
+
+        return collect($value)
+            ->map(function ($item) {
+                if (!is_array($item)) {
+                    return null;
+                }
+
+                $name = trim((string) ($item['name'] ?? $item['nombre'] ?? ''));
+                $mapUrl = trim((string) ($item['map_url'] ?? $item['url'] ?? ''));
+
+                if ($name === '' && $mapUrl === '') {
+                    return null;
+                }
+
+                return [
+                    'name' => $name,
+                    'map_url' => $mapUrl,
+                ];
+            })
+            ->filter()
             ->values()
             ->all();
     }

@@ -15,8 +15,12 @@ use Illuminate\Support\Facades\Validator;
 
 class TicketCheckoutController extends Controller
 {
+    private const CASH_PENDING_HOURS = 72;
+
     public function createPreference(Request $request)
     {
+        TicketOrder::expirePendingCashOrders();
+
         if (!Auth::check()) {
             return response()->json(['message' => 'Debes iniciar sesion para comprar.'], 401);
         }
@@ -24,7 +28,9 @@ class TicketCheckoutController extends Controller
         $validator = Validator::make($request->all(), [
             'event_id' => 'required|exists:eventos,id',
             'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1|max:5',
+            'quantity' => 'required|integer|min:1|max:20',
+            'payment_method' => 'nullable|in:mercadopago,cash',
+            'pickup_point_index' => 'nullable|integer|min:0',
         ]);
 
         if ($validator->fails()) {
@@ -46,9 +52,65 @@ class TicketCheckoutController extends Controller
             return response()->json(['message' => 'El producto no esta disponible.'], 422);
         }
 
-        $quantity = (int) $request->input('quantity');
-        if ($product->stock < $quantity) {
+        $requestedQuantity = (int) $request->input('quantity');
+        $promotionData = $this->resolvePromotionForQuantity($product, $requestedQuantity);
+        $totalQuantity = (int) $promotionData['total_quantity'];
+        $paidQuantity = (int) $promotionData['paid_quantity'];
+        $bonusQuantity = (int) $promotionData['bonus_quantity'];
+        $promotionSnapshot = $promotionData['promotion'];
+
+        if ($product->stock < $totalQuantity) {
             return response()->json(['message' => 'No hay stock suficiente para esta compra.'], 422);
+        }
+
+        $paymentMethod = $request->input('payment_method', 'mercadopago');
+        $pickupPoints = is_array($event->pickup_points) ? $event->pickup_points : [];
+        $pickupPointIndex = $request->input('pickup_point_index');
+        $selectedPickupPoint = null;
+        if ($pickupPointIndex !== null && isset($pickupPoints[(int) $pickupPointIndex])) {
+            $selectedPickupPoint = $pickupPoints[(int) $pickupPointIndex];
+        }
+
+        if ($paymentMethod === 'cash') {
+            $expiresAt = now()->addHours((int) env('TICKET_CASH_PENDING_HOURS', self::CASH_PENDING_HOURS));
+            $order = TicketOrder::create([
+                'event_id' => $event->id,
+                'product_id' => $product->id,
+                'user_id' => Auth::id(),
+                'quantity' => $totalQuantity,
+                'paid_quantity' => $paidQuantity,
+                'bonus_quantity' => $bonusQuantity,
+                'promotion_snapshot' => $promotionSnapshot,
+                'unit_price_ars' => $product->price_ars,
+                'currency' => 'ARS',
+                'payment_method' => 'cash',
+                'status' => 'pending_cash',
+                'expires_at' => $expiresAt,
+                'pickup_point_name' => $selectedPickupPoint['name'] ?? null,
+                'pickup_point_map_url' => $selectedPickupPoint['map_url'] ?? null,
+            ]);
+
+            $user = $request->user();
+            $message = $this->buildCashWhatsappMessage(
+                $user?->name ?: 'Usuario',
+                $event->nombre,
+                $totalQuantity,
+                (int) $order->id,
+                $order->pickup_point_name
+            );
+
+            return response()->json([
+                'order_id' => $order->id,
+                'status' => 'pending_cash',
+                'paid_quantity' => $paidQuantity,
+                'bonus_quantity' => $bonusQuantity,
+                'expires_at' => $expiresAt->toISOString(),
+                'whatsapp_url' => $event->cash_whatsapp_url,
+                'whatsapp_message' => $message,
+                'whatsapp_message_url' => $this->buildWhatsAppMessageUrl($event->cash_whatsapp_url, $message),
+                'pickup_points' => $pickupPoints,
+                'instructions' => $event->cash_instructions,
+            ]);
         }
 
         $accessToken = config('services.mercadopago.access_token');
@@ -60,9 +122,13 @@ class TicketCheckoutController extends Controller
             'event_id' => $event->id,
             'product_id' => $product->id,
             'user_id' => Auth::id(),
-            'quantity' => $quantity,
+            'quantity' => $totalQuantity,
+            'paid_quantity' => $paidQuantity,
+            'bonus_quantity' => $bonusQuantity,
+            'promotion_snapshot' => $promotionSnapshot,
             'unit_price_ars' => $product->price_ars,
             'currency' => 'ARS',
+            'payment_method' => 'mercadopago',
             'status' => 'pending',
         ]);
 
@@ -70,7 +136,7 @@ class TicketCheckoutController extends Controller
             'items' => [
                 [
                     'title' => $product->name,
-                    'quantity' => $quantity,
+                    'quantity' => $paidQuantity,
                     'unit_price' => (float) $product->price_ars,
                     'currency_id' => 'ARS',
                 ],
@@ -80,6 +146,8 @@ class TicketCheckoutController extends Controller
                 'order_id' => $order->id,
                 'event_id' => $event->id,
                 'product_id' => $product->id,
+                'paid_quantity' => $paidQuantity,
+                'bonus_quantity' => $bonusQuantity,
             ],
             'auto_return' => 'approved',
             'back_urls' => [
@@ -111,6 +179,8 @@ class TicketCheckoutController extends Controller
             $useSandbox = config('app.env') !== 'production' && !empty($data['sandbox_init_point']);
             return response()->json([
                 'order_id' => $order->id,
+                'paid_quantity' => $paidQuantity,
+                'bonus_quantity' => $bonusQuantity,
                 'init_point' => $useSandbox ? $data['sandbox_init_point'] : $data['init_point'],
             ]);
         } catch (\Throwable $exception) {
@@ -123,6 +193,8 @@ class TicketCheckoutController extends Controller
 
     public function handleWebhook(Request $request)
     {
+        TicketOrder::expirePendingCashOrders();
+
         $paymentId = $request->input('data.id') ?? $request->input('id');
         if (!$paymentId) {
             return response()->json(['message' => 'Sin id de pago.'], 200);
@@ -184,5 +256,69 @@ class TicketCheckoutController extends Controller
         });
 
         return response()->json(['message' => 'OK'], 200);
+    }
+
+    private function buildCashWhatsappMessage(
+        string $userName,
+        string $eventName,
+        int $quantity,
+        int $orderId,
+        ?string $pickupPointName = null
+    ): string {
+        $pickupText = $pickupPointName ? " Punto de retiro preferido: {$pickupPointName}." : '';
+        return "Hola! Quiero coordinar mi entrada en efectivo. Evento: {$eventName}. Cantidad: {$quantity}. Nombre: {$userName}. Orden: #{$orderId}.{$pickupText}";
+    }
+
+    private function buildWhatsAppMessageUrl(?string $baseUrl, string $message): ?string
+    {
+        if (!$baseUrl) {
+            return null;
+        }
+
+        // The wa.me/qr format does not support prefilled text reliably.
+        if (str_contains($baseUrl, '/wa.me/qr/') || str_contains($baseUrl, 'wa.me/qr/')) {
+            return null;
+        }
+
+        $separator = str_contains($baseUrl, '?') ? '&' : '?';
+        return $baseUrl . $separator . 'text=' . rawurlencode($message);
+    }
+
+    private function resolvePromotionForQuantity(Product $product, int $paidQuantity): array
+    {
+        $promotions = is_array($product->promotions) ? $product->promotions : [];
+        $bestPromotion = null;
+        $bestBonus = 0;
+
+        foreach ($promotions as $promotion) {
+            if (!is_array($promotion)) continue;
+            if (($promotion['type'] ?? '') !== 'buy_x_get_y') continue;
+            if (array_key_exists('is_active', $promotion) && !$promotion['is_active']) continue;
+
+            $buyQty = (int) ($promotion['buy_qty'] ?? 0);
+            $freeQty = (int) ($promotion['free_qty'] ?? 0);
+            if ($buyQty <= 0 || $freeQty <= 0) continue;
+
+            $bonus = (int) floor($paidQuantity / $buyQty) * $freeQty;
+            if ($bonus <= 0) continue;
+
+            if ($bonus > $bestBonus) {
+                $bestBonus = $bonus;
+                $bestPromotion = [
+                    'id' => $promotion['id'] ?? null,
+                    'type' => 'buy_x_get_y',
+                    'buy_qty' => $buyQty,
+                    'free_qty' => $freeQty,
+                    'label' => $promotion['label'] ?? "{$buyQty} + {$freeQty}",
+                ];
+            }
+        }
+
+        return [
+            'paid_quantity' => $paidQuantity,
+            'bonus_quantity' => $bestBonus,
+            'total_quantity' => $paidQuantity + $bestBonus,
+            'promotion' => $bestPromotion,
+        ];
     }
 }
