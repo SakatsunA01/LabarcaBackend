@@ -114,6 +114,8 @@ class AdminTicketOrderController extends Controller
         }
 
         Mail::to($email)->send(new TicketOrderApprovedMail($order));
+        $order->email_sent_at = now();
+        $order->save();
 
         return response()->json(['message' => 'Email enviado.']);
     }

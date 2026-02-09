@@ -23,6 +23,7 @@ class TicketOrder extends Model
         'status',
         'expires_at',
         'approved_at',
+        'email_sent_at',
         'approved_by',
         'coordination_phone',
         'admin_note',
@@ -37,6 +38,7 @@ class TicketOrder extends Model
         'promotion_snapshot' => 'array',
         'expires_at' => 'datetime',
         'approved_at' => 'datetime',
+        'email_sent_at' => 'datetime',
     ];
 
     public function event()
