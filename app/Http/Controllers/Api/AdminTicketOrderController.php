@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TicketOrderApprovedMail;
 use App\Models\Product;
 use App\Models\TicketOrder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class AdminTicketOrderController extends Controller
@@ -16,6 +18,11 @@ class AdminTicketOrderController extends Controller
         TicketOrder::expirePendingCashOrders();
 
         $orders = TicketOrder::with(['event', 'product', 'user'])
+            ->where(function ($query) {
+                $query->whereNull('payment_method')
+                    ->orWhere('payment_method', '!=', 'mercadopago')
+                    ->orWhere('status', '!=', 'pending');
+            })
             ->orderByDesc('created_at')
             ->get();
 
@@ -88,5 +95,26 @@ class AdminTicketOrderController extends Controller
         }
 
         return response()->json($order->fresh(['event', 'product', 'user']));
+    }
+
+    public function sendTicketEmail(string $id)
+    {
+        $order = TicketOrder::with(['event', 'product', 'user'])->find($id);
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        if ($order->status !== 'approved') {
+            return response()->json(['message' => 'La orden no esta aprobada.'], 422);
+        }
+
+        $email = $order->user?->email;
+        if (!$email) {
+            return response()->json(['message' => 'El usuario no tiene email.'], 422);
+        }
+
+        Mail::to($email)->send(new TicketOrderApprovedMail($order));
+
+        return response()->json(['message' => 'Email enviado.']);
     }
 }

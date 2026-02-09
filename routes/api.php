@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\SocialAuthController;
 use App\Http\Controllers\Api\PromoVideoController;
 use App\Http\Controllers\Api\PromoInquiryController;
 use App\Http\Controllers\Api\ArtistCategoryController;
+use App\Http\Controllers\Api\PressInquiryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +38,7 @@ Route::get('sorteos', [SorteoController::class, 'publicIndex']);
 Route::get('promo-video', [PromoVideoController::class, 'showPublic']);
 Route::get('promo-video/stream', [PromoVideoController::class, 'stream']);
 Route::post('promo-inquiries', [PromoInquiryController::class, 'store']);
+Route::post('press-inquiries', [PressInquiryController::class, 'store']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('socialAccounts');
@@ -130,6 +132,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/ticket-orders', [AdminTicketOrderController::class, 'index']);
     Route::get('admin/ticket-orders/{id}', [AdminTicketOrderController::class, 'show']);
     Route::post('admin/ticket-orders/{id}/approve-cash', [AdminTicketOrderController::class, 'approveCash']);
+    Route::post('admin/ticket-orders/{id}/send-email', [AdminTicketOrderController::class, 'sendTicketEmail']);
     Route::post('admin/ticket-orders/verify', [TicketVerificationController::class, 'verify']);
     Route::get('admin/sorteos', [SorteoController::class, 'index']);
     Route::post('admin/sorteos', [SorteoController::class, 'store']);
@@ -142,4 +145,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/promo-video', [PromoVideoController::class, 'update']);
     Route::get('admin/promo-inquiries', [PromoInquiryController::class, 'index']);
     Route::delete('admin/promo-inquiries/{promoInquiry}', [PromoInquiryController::class, 'destroy']);
+    Route::get('admin/press-inquiries', [PressInquiryController::class, 'index']);
+    Route::delete('admin/press-inquiries/{pressInquiry}', [PressInquiryController::class, 'destroy']);
 });
