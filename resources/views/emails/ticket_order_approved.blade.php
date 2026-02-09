@@ -55,7 +55,7 @@
             <div class="value">{{ $order->mp_payment_id ?? $order->id }}</div>
             <span class="badge">Presentalo junto al QR</span>
             <div style="margin-top: 12px;">
-              <a class="cta" href="{{ url('/perfil') }}">Ver mi entrada</a>
+              <a class="cta" href="https://labarcaministerio.com/perfil">Ver mi entrada</a>
             </div>
           </div>
 
