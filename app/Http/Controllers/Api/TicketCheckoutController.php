@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\TicketOrderApprovedMail;
 use App\Models\Evento;
 use App\Models\Product;
 use App\Models\TicketOrder;
@@ -11,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class TicketCheckoutController extends Controller
@@ -254,6 +256,16 @@ class TicketCheckoutController extends Controller
 
             $order->save();
         });
+
+        $order->refresh();
+        if ($order->status === 'approved' && !$order->email_sent_at) {
+            $order->loadMissing(['event', 'product', 'user']);
+            if ($order->user?->email) {
+                Mail::to($order->user->email)->send(new TicketOrderApprovedMail($order));
+                $order->email_sent_at = now();
+                $order->save();
+            }
+        }
 
         return response()->json(['message' => 'OK'], 200);
     }

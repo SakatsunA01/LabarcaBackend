@@ -94,7 +94,14 @@ class AdminTicketOrderController extends Controller
             return response()->json(['message' => $exception->getMessage()], 422);
         }
 
-        return response()->json($order->fresh(['event', 'product', 'user']));
+        $order = $order->fresh(['event', 'product', 'user']);
+        if ($order->status === 'approved' && !$order->email_sent_at && $order->user?->email) {
+            Mail::to($order->user->email)->send(new TicketOrderApprovedMail($order));
+            $order->email_sent_at = now();
+            $order->save();
+        }
+
+        return response()->json($order);
     }
 
     public function sendTicketEmail(string $id)
