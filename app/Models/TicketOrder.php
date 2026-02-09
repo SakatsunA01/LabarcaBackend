@@ -24,6 +24,9 @@ class TicketOrder extends Model
         'expires_at',
         'approved_at',
         'email_sent_at',
+        'rejected_at',
+        'rejected_by',
+        'rejected_reason',
         'approved_by',
         'coordination_phone',
         'admin_note',
@@ -39,6 +42,7 @@ class TicketOrder extends Model
         'expires_at' => 'datetime',
         'approved_at' => 'datetime',
         'email_sent_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     public function event()

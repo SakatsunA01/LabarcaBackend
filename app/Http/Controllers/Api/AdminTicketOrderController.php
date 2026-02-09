@@ -119,4 +119,32 @@ class AdminTicketOrderController extends Controller
 
         return response()->json(['message' => 'Email enviado.']);
     }
+
+    public function rejectCash(Request $request, string $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'rejected_reason' => 'nullable|string|max:500',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $order = TicketOrder::with(['event', 'product', 'user'])->find($id);
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        if (!in_array($order->status, ['pending_cash', 'pending'], true)) {
+            return response()->json(['message' => 'La orden no se puede rechazar en este estado.'], 422);
+        }
+
+        $order->status = 'rejected';
+        $order->rejected_at = now();
+        $order->rejected_by = $request->user()?->id;
+        $order->rejected_reason = $request->input('rejected_reason');
+        $order->save();
+
+        return response()->json($order->fresh(['event', 'product', 'user']));
+    }
 }
