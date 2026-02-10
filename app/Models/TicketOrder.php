@@ -24,6 +24,7 @@ class TicketOrder extends Model
         'expires_at',
         'approved_at',
         'email_sent_at',
+        'pending_email_sent_at',
         'rejected_at',
         'rejected_by',
         'rejected_reason',
@@ -42,6 +43,7 @@ class TicketOrder extends Model
         'expires_at' => 'datetime',
         'approved_at' => 'datetime',
         'email_sent_at' => 'datetime',
+        'pending_email_sent_at' => 'datetime',
         'rejected_at' => 'datetime',
     ];
 

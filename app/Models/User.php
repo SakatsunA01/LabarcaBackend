@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'phone',
+        'admin_sn',
         'belongs_to_church',
         'church_name',
         'pastor_name',
@@ -49,6 +50,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'admin_sn' => 'boolean',
         'belongs_to_church' => 'boolean',
         'profile_incomplete' => 'boolean',
     ];

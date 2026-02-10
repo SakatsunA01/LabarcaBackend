@@ -134,6 +134,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/ticket-orders/{id}/approve-cash', [AdminTicketOrderController::class, 'approveCash']);
     Route::post('admin/ticket-orders/{id}/reject-cash', [AdminTicketOrderController::class, 'rejectCash']);
     Route::post('admin/ticket-orders/{id}/send-email', [AdminTicketOrderController::class, 'sendTicketEmail']);
+    Route::post('admin/ticket-orders/{id}/send-pending-email', [AdminTicketOrderController::class, 'sendPendingEmail']);
     Route::post('admin/ticket-orders/verify', [TicketVerificationController::class, 'verify']);
     Route::get('admin/sorteos', [SorteoController::class, 'index']);
     Route::post('admin/sorteos', [SorteoController::class, 'store']);

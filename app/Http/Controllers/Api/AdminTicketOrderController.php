@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Mail\TicketOrderApprovedMail;
+use App\Mail\TicketOrderPendingMail;
 use App\Models\Product;
 use App\Models\TicketOrder;
 use Illuminate\Http\Request;
@@ -120,6 +121,29 @@ class AdminTicketOrderController extends Controller
         $order->save();
 
         return response()->json(['message' => 'Email enviado.']);
+    }
+
+    public function sendPendingEmail(string $id)
+    {
+        $order = TicketOrder::with(['event', 'product', 'user'])->find($id);
+        if (!$order) {
+            return response()->json(['message' => 'Orden no encontrada'], 404);
+        }
+
+        if ($order->status !== 'pending' || $order->payment_method !== 'mercadopago') {
+            return response()->json(['message' => 'La orden no esta pendiente de Mercado Pago.'], 422);
+        }
+
+        $email = $order->user?->email;
+        if (!$email) {
+            return response()->json(['message' => 'El usuario no tiene email.'], 422);
+        }
+
+        Mail::to($email)->send(new TicketOrderPendingMail($order));
+        $order->pending_email_sent_at = now();
+        $order->save();
+
+        return response()->json(['message' => 'Email pendiente enviado.']);
     }
 
     public function rejectCash(Request $request, string $id)
