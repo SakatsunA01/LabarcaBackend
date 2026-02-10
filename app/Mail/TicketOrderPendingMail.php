@@ -17,7 +17,7 @@ class TicketOrderPendingMail extends Mailable
     public function __construct(TicketOrder $order)
     {
         $this->order = $order;
-        $base = rtrim(config('app.url'), '/');
+        $base = rtrim(env('FRONTEND_URL', config('app.url') ?: 'https://labarcaministerio.com'), '/');
         $eventId = $order->event_id;
         $this->pendingUrl = $eventId
             ? "{$base}/eventos/{$eventId}/compra"
