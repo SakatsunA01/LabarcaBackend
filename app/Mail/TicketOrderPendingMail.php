@@ -17,8 +17,11 @@ class TicketOrderPendingMail extends Mailable
     public function __construct(TicketOrder $order)
     {
         $this->order = $order;
-        $this->pendingUrl = config('services.mercadopago.pending_url')
-            ?: rtrim(config('app.url'), '/') . '/pago/pending';
+        $base = rtrim(config('app.url'), '/');
+        $eventId = $order->event_id;
+        $this->pendingUrl = $eventId
+            ? "{$base}/eventos/{$eventId}/compra"
+            : ($base . '/pago/pending');
     }
 
     public function build()

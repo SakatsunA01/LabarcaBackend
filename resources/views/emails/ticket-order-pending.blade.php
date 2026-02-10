@@ -39,11 +39,28 @@
         <p style="margin:16px 0 8px;font-size:13px;color:#475569;">
           Si necesitas ayuda, podes escribirnos por WhatsApp:
         </p>
-        <ul style="margin:0;padding-left:18px;font-size:13px;color:#0f172a;">
-          <li><a href="https://wa.me/5491127768859" style="color:#0f172a;text-decoration:underline;">Leonel · 11 2776 8859</a></li>
-          <li><a href="https://wa.me/5491130229504" style="color:#0f172a;text-decoration:underline;">Malu · 11 3022 9504</a></li>
-          <li><a href="https://wa.me/5491160259671" style="color:#0f172a;text-decoration:underline;">Sergio · 11 6025 9671</a></li>
-        </ul>
+        <table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+          <tr>
+            <td style="padding:0 6px 6px 0;">
+              <a href="https://wa.me/5491127768859"
+                 style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:bold;font-size:12px;">
+                Leonel
+              </a>
+            </td>
+            <td style="padding:0 6px 6px 0;">
+              <a href="https://wa.me/5491130229504"
+                 style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:bold;font-size:12px;">
+                Malu
+              </a>
+            </td>
+            <td style="padding:0 6px 6px 0;">
+              <a href="https://wa.me/5491160259671"
+                 style="display:inline-block;background:#25D366;color:#fff;text-decoration:none;padding:10px 14px;border-radius:999px;font-weight:bold;font-size:12px;">
+                Sergio
+              </a>
+            </td>
+          </tr>
+        </table>
       </div>
 
       <div style="padding:16px 24px;border-top:1px solid #e6e9ef;font-size:11px;color:#64748b;">
