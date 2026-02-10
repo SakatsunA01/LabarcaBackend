@@ -18,11 +18,6 @@ class AdminTicketOrderController extends Controller
         TicketOrder::expirePendingCashOrders();
 
         $orders = TicketOrder::with(['event', 'product', 'user'])
-            ->where(function ($query) {
-                $query->whereNull('payment_method')
-                    ->orWhere('payment_method', '!=', 'mercadopago')
-                    ->orWhere('status', '!=', 'pending');
-            })
             ->orderByDesc('created_at')
             ->get();
 
