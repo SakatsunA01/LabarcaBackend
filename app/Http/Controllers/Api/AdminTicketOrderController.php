@@ -146,6 +146,39 @@ class AdminTicketOrderController extends Controller
         return response()->json(['message' => 'Email pendiente enviado.']);
     }
 
+    public function sendPendingBulk(Request $request)
+    {
+        $pendingOrders = TicketOrder::with(['event', 'product', 'user'])
+            ->where('status', 'pending')
+            ->where('payment_method', 'mercadopago')
+            ->whereNull('pending_email_sent_at')
+            ->whereNotNull('user_id')
+            ->orderByDesc('created_at')
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn ($group) => $group->first());
+
+        $sent = 0;
+        $skipped = 0;
+
+        foreach ($pendingOrders as $order) {
+            if (!$order || !$order->user?->email) {
+                $skipped++;
+                continue;
+            }
+            Mail::to($order->user->email)->send(new TicketOrderPendingMail($order));
+            $order->pending_email_sent_at = now();
+            $order->save();
+            $sent++;
+        }
+
+        return response()->json([
+            'message' => 'Proceso finalizado.',
+            'sent' => $sent,
+            'skipped' => $skipped,
+        ]);
+    }
+
     public function rejectCash(Request $request, string $id)
     {
         $validator = Validator::make($request->all(), [
