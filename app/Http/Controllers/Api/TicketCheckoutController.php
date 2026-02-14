@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Carbon;
 
 class TicketCheckoutController extends Controller
 {
@@ -55,7 +56,7 @@ class TicketCheckoutController extends Controller
         }
 
         $requestedQuantity = (int) $request->input('quantity');
-        $promotionData = $this->resolvePromotionForQuantity($product, $requestedQuantity);
+        $promotionData = $this->resolvePromotionForQuantity($product, $requestedQuantity, Auth::id());
         $totalQuantity = (int) $promotionData['total_quantity'];
         $paidQuantity = (int) $promotionData['paid_quantity'];
         $bonusQuantity = (int) $promotionData['bonus_quantity'];
@@ -296,22 +297,52 @@ class TicketCheckoutController extends Controller
         return $baseUrl . $separator . 'text=' . rawurlencode($message);
     }
 
-    private function resolvePromotionForQuantity(Product $product, int $paidQuantity): array
+    private function resolvePromotionForQuantity(Product $product, int $paidQuantity, ?int $userId = null): array
     {
         $promotions = is_array($product->promotions) ? $product->promotions : [];
         $bestPromotion = null;
         $bestBonus = 0;
+        $now = now();
 
         foreach ($promotions as $promotion) {
             if (!is_array($promotion)) continue;
             if (($promotion['type'] ?? '') !== 'buy_x_get_y') continue;
             if (array_key_exists('is_active', $promotion) && !$promotion['is_active']) continue;
 
+            $startsAt = $promotion['starts_at'] ?? null;
+            $endsAt = $promotion['ends_at'] ?? null;
+            try {
+                if ($startsAt && $now->lt(Carbon::parse($startsAt))) {
+                    continue;
+                }
+            } catch (\Throwable $e) {
+                // ignore invalid date
+            }
+            try {
+                if ($endsAt && $now->gt(Carbon::parse($endsAt))) {
+                    continue;
+                }
+            } catch (\Throwable $e) {
+                // ignore invalid date
+            }
+
             $buyQty = (int) ($promotion['buy_qty'] ?? 0);
             $freeQty = (int) ($promotion['free_qty'] ?? 0);
             if ($buyQty <= 0 || $freeQty <= 0) continue;
 
-            $bonus = (int) floor($paidQuantity / $buyQty) * $freeQty;
+            if ($userId && !empty($promotion['id'])) {
+                $alreadyUsed = TicketOrder::query()
+                    ->where('user_id', $userId)
+                    ->whereNotNull('promotion_snapshot')
+                    ->where('promotion_snapshot->id', $promotion['id'])
+                    ->exists();
+                if ($alreadyUsed) {
+                    continue;
+                }
+            }
+
+            // Exact match only: promo applies only when quantity == buy_qty
+            $bonus = $paidQuantity === $buyQty ? $freeQty : 0;
             if ($bonus <= 0) continue;
 
             if ($bonus > $bestBonus) {
@@ -322,6 +353,8 @@ class TicketCheckoutController extends Controller
                     'buy_qty' => $buyQty,
                     'free_qty' => $freeQty,
                     'label' => $promotion['label'] ?? "{$buyQty} + {$freeQty}",
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
                 ];
             }
         }

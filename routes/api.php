@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\PromoVideoController;
 use App\Http\Controllers\Api\PromoInquiryController;
 use App\Http\Controllers\Api\ArtistCategoryController;
 use App\Http\Controllers\Api\PressInquiryController;
+use App\Http\Controllers\Api\AdminPromotionEmailController;
 
 /*
 |--------------------------------------------------------------------------
@@ -150,4 +151,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('admin/promo-inquiries/{promoInquiry}', [PromoInquiryController::class, 'destroy']);
     Route::get('admin/press-inquiries', [PressInquiryController::class, 'index']);
     Route::delete('admin/press-inquiries/{pressInquiry}', [PressInquiryController::class, 'destroy']);
+    Route::get('admin/promo-emails', [AdminPromotionEmailController::class, 'index']);
+    Route::post('admin/promo-emails/send', [AdminPromotionEmailController::class, 'send']);
 });

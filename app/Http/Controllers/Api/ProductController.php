@@ -146,6 +146,8 @@ class ProductController extends Controller
                 $freeQty = (int) ($item['free_qty'] ?? 0);
                 $isActive = array_key_exists('is_active', $item) ? (bool) $item['is_active'] : true;
                 $label = trim((string) ($item['label'] ?? "{$buyQty} + {$freeQty}"));
+                $startsAt = $item['starts_at'] ?? null;
+                $endsAt = $item['ends_at'] ?? null;
 
                 if ($buyQty <= 0 || $freeQty <= 0) return null;
 
@@ -156,6 +158,8 @@ class ProductController extends Controller
                     'free_qty' => $freeQty,
                     'label' => $label,
                     'is_active' => $isActive,
+                    'starts_at' => $startsAt,
+                    'ends_at' => $endsAt,
                 ];
             })
             ->filter()

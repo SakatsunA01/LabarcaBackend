@@ -79,6 +79,11 @@ class User extends Authenticatable
         return $this->hasMany(PrayerRequest::class);
     }
 
+    public function ticketOrders(): HasMany
+    {
+        return $this->hasMany(TicketOrder::class);
+    }
+
     /**
      * Get all social accounts for the user.
      */
