@@ -32,7 +32,7 @@ class AdminPromotionEmailController extends Controller
                     'product_id' => $product->id,
                     'product_name' => $product->name,
                     'price_ars' => $product->price_ars,
-                    'stock' => $product->stock,
+                    'stock' => (int) $product->stock,
                     'type' => $type,
                     'promotions' => $activePromos,
                 ];
