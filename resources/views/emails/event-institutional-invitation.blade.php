@@ -162,13 +162,13 @@
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
                       <tr>
                         <td style="padding:4px;">
-                          <a href="https://wa.me/5491127768859" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Leonel</a>
+                          <a href="https://wa.me/5491127768859" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Leonel 11 2776-8859</a>
                         </td>
                         <td style="padding:4px;">
-                          <a href="https://wa.me/5491130229504" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Malu</a>
+                          <a href="https://wa.me/5491130229504" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Malu 11 3022-9504</a>
                         </td>
                         <td style="padding:4px;">
-                          <a href="https://wa.me/5491160259671" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Sergio</a>
+                          <a href="https://wa.me/5491160259671" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Sergio 11 6025-9671</a>
                         </td>
                       </tr>
                     </table>

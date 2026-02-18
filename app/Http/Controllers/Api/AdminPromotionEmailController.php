@@ -112,8 +112,12 @@ class AdminPromotionEmailController extends Controller
         $validator = Validator::make($request->all(), [
             'event_id' => 'required|exists:eventos,id',
             'product_id' => 'required|exists:products,id',
-            'emails' => 'required|array|min:1',
+            'emails' => 'nullable|array|min:1',
             'emails.*' => 'required|email',
+            'recipients' => 'nullable|array|min:1',
+            'recipients.*.email' => 'required_with:recipients|email',
+            'recipients.*.church_name' => 'nullable|string|max:255',
+            'recipients.*.pastor_cargo' => 'nullable|string|max:255',
             'mode' => 'required|in:test,send',
             'test_email' => 'nullable|email',
             'church_name' => 'nullable|string|max:255',
@@ -141,13 +145,35 @@ class AdminPromotionEmailController extends Controller
         $pastorCargo = trim((string) $request->input('pastor_cargo', ''));
         $subject = trim((string) $request->input('subject', '')) ?: null;
 
-        $emails = collect($request->input('emails', []))
-            ->map(fn ($email) => strtolower(trim((string) $email)))
-            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->unique()
+        $recipientRows = collect($request->input('recipients', []))
+            ->map(function ($row) {
+                if (!is_array($row)) return null;
+                $email = strtolower(trim((string) ($row['email'] ?? '')));
+                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return null;
+                return [
+                    'email' => $email,
+                    'church_name' => trim((string) ($row['church_name'] ?? '')),
+                    'pastor_cargo' => trim((string) ($row['pastor_cargo'] ?? '')),
+                ];
+            })
+            ->filter()
             ->values();
 
-        if ($emails->isEmpty()) {
+        if ($recipientRows->isEmpty()) {
+            $emails = collect($request->input('emails', []))
+                ->map(fn ($email) => strtolower(trim((string) $email)))
+                ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+                ->unique()
+                ->values();
+
+            $recipientRows = $emails->map(fn ($email) => [
+                'email' => $email,
+                'church_name' => '',
+                'pastor_cargo' => '',
+            ])->values();
+        }
+
+        if ($recipientRows->isEmpty()) {
             return response()->json(['message' => 'No hay correos validos para enviar.'], 422);
         }
 
@@ -158,13 +184,17 @@ class AdminPromotionEmailController extends Controller
                 return response()->json(['message' => 'Ingresa un email de prueba valido.'], 422);
             }
 
+            $sample = $recipientRows->first();
+            $sampleChurch = !empty($sample['church_name']) ? $sample['church_name'] : $churchName;
+            $samplePastor = !empty($sample['pastor_cargo']) ? $sample['pastor_cargo'] : $pastorCargo;
+
             Mail::to($to)->send(new EventInstitutionalInvitationMail(
                 $event,
                 $product,
                 $activePromos,
                 $lineup,
-                $churchName,
-                $pastorCargo,
+                $sampleChurch,
+                $samplePastor,
                 $subject
             ));
 
@@ -177,15 +207,23 @@ class AdminPromotionEmailController extends Controller
 
         $sent = 0;
         $skipped = 0;
-        foreach ($emails as $email) {
+        $dedupedRecipients = $recipientRows
+            ->groupBy('email')
+            ->map(fn ($group) => $group->first())
+            ->values();
+
+        foreach ($dedupedRecipients as $recipient) {
             try {
-                Mail::to($email)->send(new EventInstitutionalInvitationMail(
+                $recipientChurch = !empty($recipient['church_name']) ? $recipient['church_name'] : $churchName;
+                $recipientPastor = !empty($recipient['pastor_cargo']) ? $recipient['pastor_cargo'] : $pastorCargo;
+
+                Mail::to($recipient['email'])->send(new EventInstitutionalInvitationMail(
                     $event,
                     $product,
                     $activePromos,
                     $lineup,
-                    $churchName,
-                    $pastorCargo,
+                    $recipientChurch,
+                    $recipientPastor,
                     $subject
                 ));
                 $sent++;
@@ -198,7 +236,7 @@ class AdminPromotionEmailController extends Controller
             'message' => 'Invitaciones enviadas.',
             'sent' => $sent,
             'skipped' => $skipped,
-            'total' => $emails->count(),
+            'total' => $dedupedRecipients->count(),
         ]);
     }
 
