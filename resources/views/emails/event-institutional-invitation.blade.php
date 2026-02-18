@@ -128,7 +128,7 @@
                       Entendemos que la bendicion es mayor cuando se vive en grupo.
                       Al reservar un bloque de <strong style="color:#ffffff;">16 entradas</strong> para su congregacion,
                       reciben <strong style="color:#ffffff;">4 entradas adicionales sin cargo</strong> para su equipo de liderazgo o servicio.
-                      Ubicaciones preferenciales garantizadas para que toda la iglesia disfrute unida.
+                      Las ubicaciones se asignan por orden de llegada.
                     </p>
                     @if($promoDates->count())
                       <p style="margin:10px 0 0 0;font-size:12px;line-height:1.5;color:#cbbfa5;">
