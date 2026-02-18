@@ -6,6 +6,19 @@
       : rtrim(env('APP_URL', 'https://api.labarcaministerio.com'), '/') . $event->imagenUrl;
   }
 
+  $fallbackArtists = [
+    ['name' => 'Constanza Quiroga', 'image' => null],
+    ['name' => 'Franco Maronati', 'image' => null],
+    ['name' => 'Priscila Matiesco', 'image' => null],
+    ['name' => 'Gabi Ledesma', 'image' => null],
+    ['name' => 'Rafael Prancatelli', 'image' => null],
+    ['name' => 'Luciano Scatena', 'image' => null],
+  ];
+  $artists = collect($lineup)->take(6)->values()->all();
+  if (count($artists) < 6) {
+    $artists = $fallbackArtists;
+  }
+
   $promoDates = collect($promotions)
     ->map(function ($promo) {
       $start = !empty($promo['starts_at']) ? \Illuminate\Support\Carbon::parse($promo['starts_at'])->format('d/m/Y') : null;
@@ -18,130 +31,155 @@
     ->filter()
     ->unique()
     ->values();
-
-  $churchPromo = collect($promotions)->first(function ($promo) {
-    $label = strtolower((string) ($promo['label'] ?? ''));
-    return str_contains($label, 'iglesia');
-  });
-  if (!$churchPromo) {
-    $churchPromo = collect($promotions)->sortByDesc('buy_qty')->first();
-  }
-
-  $churchBuy = (int) ($churchPromo['buy_qty'] ?? 16);
-  $churchFree = (int) ($churchPromo['free_qty'] ?? 4);
-  $churchTotal = $churchBuy + $churchFree;
 @endphp
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ilumina Argentina en el Opera</title>
-  </head>
-  <body style="margin:0;background:#f5f6f8;padding:24px;font-family:Arial, sans-serif;color:#0f172a;">
-    <div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:20px;overflow:hidden;border:1px solid #e2e8f0;">
-      <div style="background:#0f172a;color:#ffffff;">
-        @if($heroImage)
-          <img src="{{ $heroImage }}" alt="Ilumina Argentina" style="width:100%;height:220px;object-fit:cover;display:block;" />
-        @endif
-        <div style="padding:24px;">
-          <h1 style="margin:0;font-size:28px;line-height:1.2;">
-            Estamos a un paso de algo historico: Ilumina Argentina
-          </h1>
-          <p style="margin:10px 0 0;font-size:14px;color:#cbd5e1;">
-            Una experiencia de fe, musica y unidad que renueva corazones en el emblematico Teatro Opera.
-          </p>
-        </div>
-      </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invitacion institucional</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0f0f10;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+    Una noche de unidad y adoracion en el corazon de Buenos Aires. Su iglesia es parte de este hito.
+  </div>
 
-      <div style="padding:24px;">
-        <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#334155;">
-          Estimados lideres de <strong>{{ $churchName ?: 'su congregacion' }}</strong>@if($pastorRole), {{ $pastorRole }}@endif:
-          desde La Barca Music queremos invitarlos a una noche de renovacion espiritual y excelencia artistica el
-          <strong>{{ !empty($event?->fecha) ? \Illuminate\Support\Carbon::parse($event->fecha)->format('d/m/Y H:i') : '27/02 19:00' }} hs</strong>.
-        </p>
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#0f0f10;">
+    <tr>
+      <td align="center" style="padding:20px 10px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#121212;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;">
+          <tr>
+            <td style="padding:0;">
+              @if($heroImage)
+                <img src="{{ $heroImage }}" alt="Ilumina Argentina en el Teatro Opera" width="600" height="300" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;">
+              @else
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#1f1f1f;">
+                  <tr>
+                    <td align="center" style="padding:120px 20px;color:#f5f0e6;font-family:Helvetica,Arial,sans-serif;font-size:24px;font-weight:700;">
+                      Ilumina Argentina
+                    </td>
+                  </tr>
+                </table>
+              @endif
+            </td>
+          </tr>
 
-        <div style="display:block;margin:0 0 16px;">
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:8px;">
-            <p style="margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;">Experiencia</p>
-            <p style="margin:6px 0 0;font-size:13px;color:#0f172a;">Mucho mas que un concierto... una atmosfera de adoracion.</p>
-          </div>
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:8px;">
-            <p style="margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;">Autoridad</p>
-            <p style="margin:6px 0 0;font-size:13px;color:#0f172a;">Lideres y referentes de Argentina y el mundo.</p>
-          </div>
-          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;">
-            <p style="margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;">Mensaje</p>
-            <p style="margin:6px 0 0;font-size:13px;color:#0f172a;">Palabras de fe que inspiran a cada persona.</p>
-          </div>
-        </div>
+          <tr>
+            <td style="padding:26px 26px 12px 26px;font-family:Helvetica,Arial,sans-serif;color:#f5f0e6;">
+              <h1 style="margin:0;font-size:30px;line-height:1.2;font-weight:800;color:#f5f0e6;">
+                Estamos a un paso de algo historico: Ilumina Argentina
+              </h1>
+            </td>
+          </tr>
 
-        @if(!empty($lineup))
-          <div style="margin:0 0 16px;">
-            <p style="margin:0 0 10px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#94a3b8;">Lineup invitado</p>
-            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-              <tr>
-                @foreach(array_slice($lineup, 0, 6) as $artist)
-                  <td style="text-align:center;padding:6px;">
-                    @if(!empty($artist['image']))
-                      <img src="{{ $artist['image'] }}" alt="{{ $artist['name'] }}" style="width:72px;height:72px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 6px;" />
-                    @endif
-                    <p style="margin:0;font-size:11px;color:#334155;line-height:1.3;">{{ $artist['name'] }}</p>
+          <tr>
+            <td style="padding:0 26px 20px 26px;font-family:Helvetica,Arial,sans-serif;color:#ddd6c7;">
+              <p style="margin:0;font-size:16px;line-height:1.6;">
+                Estimados lideres de <strong style="color:#ffffff;">{{ $churchName ?: 'nombre_iglesia' }}</strong>,
+                hay momentos que marcan la historia de nuestra adoracion. El 27 de febrero, el Teatro Opera se viste de gala para recibir a Ilumina Argentina.
+                Mas que un concierto, es una convocatoria para que el cuerpo de Cristo se una en un solo sonido de renovacion.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 20px 16px 20px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                @for($row = 0; $row < 2; $row++)
+                  <tr>
+                    @for($col = 0; $col < 3; $col++)
+                      @php $idx = ($row * 3) + $col; $artist = $artists[$idx] ?? null; @endphp
+                      <td width="33.33%" align="center" valign="top" style="padding:10px 6px;">
+                        @if(!empty($artist['image']))
+                          <img src="{{ $artist['image'] }}" alt="{{ $artist['name'] }}" width="100" height="100" style="display:block;width:100px;height:100px;border-radius:50%;object-fit:cover;border:2px solid #d4af37;">
+                        @else
+                          <table role="presentation" width="100" height="100" cellspacing="0" cellpadding="0" border="0" style="width:100px;height:100px;border-radius:50%;border:2px solid #d4af37;background:#1c1c1c;">
+                            <tr>
+                              <td align="center" style="font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#d4af37;font-weight:700;padding:6px;">
+                                Artista
+                              </td>
+                            </tr>
+                          </table>
+                        @endif
+                        <p style="margin:8px 0 0 0;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.4;color:#f5f0e6;font-weight:700;">
+                          {{ $artist['name'] ?? '' }}
+                        </p>
+                      </td>
+                    @endfor
+                  </tr>
+                @endfor
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:0 26px 20px 26px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#191919;border:1px solid #3a2f1a;border-radius:14px;">
+                <tr>
+                  <td style="padding:18px 18px 8px 18px;font-family:Helvetica,Arial,sans-serif;">
+                    <p style="margin:0;font-size:12px;line-height:1.4;letter-spacing:1.2px;text-transform:uppercase;color:#d4af37;font-weight:800;">
+                      Pack Comunidad: 16 + 4
+                    </p>
                   </td>
-                  @if(($loop->iteration % 3) === 0 && !$loop->last)
-                    </tr><tr>
-                  @endif
-                @endforeach
-              </tr>
-            </table>
-          </div>
-        @endif
+                </tr>
+                <tr>
+                  <td style="padding:0 18px 16px 18px;font-family:Helvetica,Arial,sans-serif;">
+                    <p style="margin:0;font-size:14px;line-height:1.7;color:#e7e0d2;">
+                      Entendemos que la bendicion es mayor cuando se vive en grupo.
+                      Al reservar un bloque de <strong style="color:#ffffff;">16 entradas</strong> para su congregacion,
+                      reciben <strong style="color:#ffffff;">4 entradas adicionales sin cargo</strong> para su equipo de liderazgo o servicio.
+                      Ubicaciones preferenciales garantizadas para que toda la iglesia disfrute unida.
+                    </p>
+                    @if($promoDates->count())
+                      <p style="margin:10px 0 0 0;font-size:12px;line-height:1.5;color:#cbbfa5;">
+                        Vigencia del beneficio: <strong>{{ $promoDates->implode(', ') }}</strong>
+                      </p>
+                    @endif
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-        <div style="background:#ecfeff;border:1px solid #99f6e4;border-radius:16px;padding:16px;margin:0 0 18px;">
-          <p style="margin:0;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#0f766e;">Pack Iglesias: Comunidad en unidad</p>
-          <p style="margin:8px 0 0;font-size:14px;line-height:1.6;color:#0f172a;">
-            Al reservar en bloque para su congregacion o grupo de jovenes:
-            <strong>comprando {{ $churchBuy }} entradas, reciben {{ $churchFree }} de regalo</strong>
-            (total {{ $churchTotal }} lugares), con posibilidad de ubicaciones preferenciales para mantenerse unidos.
-          </p>
-          @if($promoDates->count())
-            <p style="margin:10px 0 0;font-size:12px;color:#334155;">
-              Cupos limitados. Vigencia: <strong>{{ $promoDates->implode(', ') }}</strong>
-            </p>
-          @endif
-        </div>
+          <tr>
+            <td align="center" style="padding:0 26px 22px 26px;">
+              <a href="{{ $ctaUrl }}" style="display:inline-block;background:#7a0f25;color:#ffffff;text-decoration:none;font-family:Helvetica,Arial,sans-serif;font-size:14px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;padding:14px 22px;border-radius:10px;">
+                Solicitar reserva institucional
+              </a>
+            </td>
+          </tr>
 
-        <div style="text-align:center;">
-          <a href="{{ $ctaUrl }}" style="display:inline-block;background:#7a0f25;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:bold;letter-spacing:0.08em;text-transform:uppercase;">
-            Solicitar reserva para grupos
-          </a>
-        </div>
-
-        <div style="margin:18px 0 0;padding:14px;border:1px solid #d1fae5;background:#ecfdf5;border-radius:14px;">
-          <p style="margin:0 0 10px;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#047857;font-weight:bold;">
-            Soporte por WhatsApp
-          </p>
-          <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-            <tr>
-              <td style="padding:4px;">
-                <a href="https://wa.me/5491127768859" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 8px;border-radius:10px;font-size:11px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;">
-                  Leonel
-                </a>
-              </td>
-              <td style="padding:4px;">
-                <a href="https://wa.me/5491130229504" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 8px;border-radius:10px;font-size:11px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;">
-                  Malu
-                </a>
-              </td>
-              <td style="padding:4px;">
-                <a href="https://wa.me/5491160259671" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 8px;border-radius:10px;font-size:11px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;">
-                  Sergio
-                </a>
-              </td>
-            </tr>
-          </table>
-        </div>
-      </div>
-    </div>
-  </body>
+          <tr>
+            <td style="padding:0 26px 24px 26px;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#102015;border:1px solid #1f4f30;border-radius:12px;">
+                <tr>
+                  <td style="padding:12px 12px 6px 12px;font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#90d3a8;text-transform:uppercase;letter-spacing:1px;font-weight:700;">
+                    Contacto por WhatsApp
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding:0 8px 12px 8px;">
+                    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                      <tr>
+                        <td style="padding:4px;">
+                          <a href="https://wa.me/5491127768859" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Leonel</a>
+                        </td>
+                        <td style="padding:4px;">
+                          <a href="https://wa.me/5491130229504" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Malu</a>
+                        </td>
+                        <td style="padding:4px;">
+                          <a href="https://wa.me/5491160259671" style="display:block;text-align:center;background:#22c55e;color:#ffffff;text-decoration:none;padding:10px 6px;border-radius:8px;font-family:Helvetica,Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">Sergio</a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
 </html>
