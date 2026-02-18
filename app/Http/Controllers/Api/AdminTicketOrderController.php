@@ -91,8 +91,9 @@ class AdminTicketOrderController extends Controller
         }
 
         $order = $order->fresh(['event', 'product', 'user']);
-        if ($order->status === 'approved' && !$order->email_sent_at && $order->user?->email) {
-            Mail::to($order->user->email)->send(new TicketOrderApprovedMail($order));
+        $email = $order->user?->email ?: $order->guest_email;
+        if ($order->status === 'approved' && !$order->email_sent_at && $email) {
+            Mail::to($email)->send(new TicketOrderApprovedMail($order));
             $order->email_sent_at = now();
             $order->save();
         }
@@ -111,7 +112,7 @@ class AdminTicketOrderController extends Controller
             return response()->json(['message' => 'La orden no esta aprobada.'], 422);
         }
 
-        $email = $order->user?->email;
+        $email = $order->user?->email ?: $order->guest_email;
         if (!$email) {
             return response()->json(['message' => 'El usuario no tiene email.'], 422);
         }
@@ -134,7 +135,7 @@ class AdminTicketOrderController extends Controller
             return response()->json(['message' => 'La orden no esta pendiente de Mercado Pago.'], 422);
         }
 
-        $email = $order->user?->email;
+        $email = $order->user?->email ?: $order->guest_email;
         if (!$email) {
             return response()->json(['message' => 'El usuario no tiene email.'], 422);
         }
@@ -152,21 +153,23 @@ class AdminTicketOrderController extends Controller
             ->where('status', 'pending')
             ->where('payment_method', 'mercadopago')
             ->whereNull('pending_email_sent_at')
-            ->whereNotNull('user_id')
             ->orderByDesc('created_at')
             ->get()
-            ->groupBy('user_id')
+            ->groupBy(function ($order) {
+                return $order->user_id ? 'user:' . $order->user_id : 'guest:' . ($order->guest_email ?: $order->id);
+            })
             ->map(fn ($group) => $group->first());
 
         $sent = 0;
         $skipped = 0;
 
         foreach ($pendingOrders as $order) {
-            if (!$order || !$order->user?->email) {
+            $email = $order->user?->email ?: $order->guest_email;
+            if (!$order || !$email) {
                 $skipped++;
                 continue;
             }
-            Mail::to($order->user->email)->send(new TicketOrderPendingMail($order));
+            Mail::to($email)->send(new TicketOrderPendingMail($order));
             $order->pending_email_sent_at = now();
             $order->save();
             $sent++;

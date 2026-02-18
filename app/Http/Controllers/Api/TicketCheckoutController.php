@@ -24,16 +24,14 @@ class TicketCheckoutController extends Controller
     {
         TicketOrder::expirePendingCashOrders();
 
-        if (!Auth::check()) {
-            return response()->json(['message' => 'Debes iniciar sesion para comprar.'], 401);
-        }
-
         $validator = Validator::make($request->all(), [
             'event_id' => 'required|exists:eventos,id',
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1|max:20',
             'payment_method' => 'nullable|in:mercadopago,cash',
             'pickup_point_index' => 'nullable|integer|min:0',
+            'guest_name' => 'nullable|string|max:255',
+            'guest_email' => 'nullable|email|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -66,6 +64,15 @@ class TicketCheckoutController extends Controller
             return response()->json(['message' => 'No hay stock suficiente para esta compra.'], 422);
         }
 
+        $isAuthenticated = Auth::check();
+        if (!$isAuthenticated) {
+            $guestName = trim((string) $request->input('guest_name'));
+            $guestEmail = trim((string) $request->input('guest_email'));
+            if ($guestName === '' || $guestEmail === '') {
+                return response()->json(['message' => 'Completa nombre y email para continuar.'], 422);
+            }
+        }
+
         $paymentMethod = $request->input('payment_method', 'mercadopago');
         $pickupPoints = is_array($event->pickup_points) ? $event->pickup_points : [];
         $pickupPointIndex = $request->input('pickup_point_index');
@@ -80,6 +87,8 @@ class TicketCheckoutController extends Controller
                 'event_id' => $event->id,
                 'product_id' => $product->id,
                 'user_id' => Auth::id(),
+                'guest_name' => $isAuthenticated ? null : trim((string) $request->input('guest_name')),
+                'guest_email' => $isAuthenticated ? null : trim((string) $request->input('guest_email')),
                 'quantity' => $totalQuantity,
                 'paid_quantity' => $paidQuantity,
                 'bonus_quantity' => $bonusQuantity,
@@ -95,7 +104,7 @@ class TicketCheckoutController extends Controller
 
             $user = $request->user();
             $message = $this->buildCashWhatsappMessage(
-                $user?->name ?: 'Usuario',
+                $user?->name ?: (trim((string) $request->input('guest_name')) ?: 'Usuario'),
                 $event->nombre,
                 $totalQuantity,
                 (int) $order->id,
@@ -125,6 +134,8 @@ class TicketCheckoutController extends Controller
             'event_id' => $event->id,
             'product_id' => $product->id,
             'user_id' => Auth::id(),
+            'guest_name' => $isAuthenticated ? null : trim((string) $request->input('guest_name')),
+            'guest_email' => $isAuthenticated ? null : trim((string) $request->input('guest_email')),
             'quantity' => $totalQuantity,
             'paid_quantity' => $paidQuantity,
             'bonus_quantity' => $bonusQuantity,
@@ -261,8 +272,9 @@ class TicketCheckoutController extends Controller
         $order->refresh();
         if ($order->status === 'approved' && !$order->email_sent_at) {
             $order->loadMissing(['event', 'product', 'user']);
-            if ($order->user?->email) {
-                Mail::to($order->user->email)->send(new TicketOrderApprovedMail($order));
+            $email = $order->user?->email ?: $order->guest_email;
+            if ($email) {
+                Mail::to($email)->send(new TicketOrderApprovedMail($order));
                 $order->email_sent_at = now();
                 $order->save();
             }

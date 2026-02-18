@@ -21,6 +21,8 @@ class TicketOrder extends Model
         'currency',
         'payment_method',
         'status',
+        'guest_name',
+        'guest_email',
         'expires_at',
         'approved_at',
         'email_sent_at',

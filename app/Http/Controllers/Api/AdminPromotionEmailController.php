@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\EventInstitutionalInvitationMail;
 use App\Mail\TicketPromotionMail;
+use App\Models\Artista;
 use App\Models\Evento;
 use App\Models\Product;
 use App\Models\TicketOrder;
@@ -105,6 +107,101 @@ class AdminPromotionEmailController extends Controller
         ]);
     }
 
+    public function sendInvitation(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'event_id' => 'required|exists:eventos,id',
+            'product_id' => 'required|exists:products,id',
+            'emails' => 'required|array|min:1',
+            'emails.*' => 'required|email',
+            'mode' => 'required|in:test,send',
+            'test_email' => 'nullable|email',
+            'church_name' => 'nullable|string|max:255',
+            'pastor_cargo' => 'nullable|string|max:255',
+            'subject' => 'nullable|string|max:255',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $event = Evento::find($request->input('event_id'));
+        $product = Product::find($request->input('product_id'));
+        if (!$event || !$product) {
+            return response()->json(['message' => 'Evento o producto no encontrado.'], 404);
+        }
+
+        $activePromos = $this->filterActivePromotions($product->promotions);
+        if (empty($activePromos)) {
+            return response()->json(['message' => 'No hay promociones activas para esta entrada.'], 422);
+        }
+
+        $lineup = $this->resolveEventLineup($event);
+        $churchName = trim((string) $request->input('church_name', ''));
+        $pastorCargo = trim((string) $request->input('pastor_cargo', ''));
+        $subject = trim((string) $request->input('subject', '')) ?: null;
+
+        $emails = collect($request->input('emails', []))
+            ->map(fn ($email) => strtolower(trim((string) $email)))
+            ->filter(fn ($email) => filter_var($email, FILTER_VALIDATE_EMAIL))
+            ->unique()
+            ->values();
+
+        if ($emails->isEmpty()) {
+            return response()->json(['message' => 'No hay correos validos para enviar.'], 422);
+        }
+
+        $mode = $request->input('mode');
+        if ($mode === 'test') {
+            $to = strtolower(trim((string) $request->input('test_email', '')));
+            if (!$to || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+                return response()->json(['message' => 'Ingresa un email de prueba valido.'], 422);
+            }
+
+            Mail::to($to)->send(new EventInstitutionalInvitationMail(
+                $event,
+                $product,
+                $activePromos,
+                $lineup,
+                $churchName,
+                $pastorCargo,
+                $subject
+            ));
+
+            return response()->json([
+                'message' => 'Prueba enviada.',
+                'sent' => 1,
+                'skipped' => 0,
+            ]);
+        }
+
+        $sent = 0;
+        $skipped = 0;
+        foreach ($emails as $email) {
+            try {
+                Mail::to($email)->send(new EventInstitutionalInvitationMail(
+                    $event,
+                    $product,
+                    $activePromos,
+                    $lineup,
+                    $churchName,
+                    $pastorCargo,
+                    $subject
+                ));
+                $sent++;
+            } catch (\Throwable $e) {
+                $skipped++;
+            }
+        }
+
+        return response()->json([
+            'message' => 'Invitaciones enviadas.',
+            'sent' => $sent,
+            'skipped' => $skipped,
+            'total' => $emails->count(),
+        ]);
+    }
+
     private function filterActivePromotions($promotions): array
     {
         $list = is_array($promotions) ? $promotions : [];
@@ -131,6 +228,34 @@ class AdminPromotionEmailController extends Controller
 
                 return true;
             })
+            ->values()
+            ->all();
+    }
+
+    private function resolveEventLineup(Evento $event): array
+    {
+        $ids = is_array($event->lineup_artist_ids) ? $event->lineup_artist_ids : [];
+        if (empty($ids)) {
+            return [];
+        }
+
+        $artists = Artista::whereIn('id', $ids)->get()->keyBy('id');
+
+        return collect($ids)
+            ->map(function ($artistId) use ($artists) {
+                $artist = $artists->get($artistId);
+                if (!$artist) return null;
+                return [
+                    'id' => $artist->id,
+                    'name' => $artist->name,
+                    'image' => !empty($artist->imageUrl)
+                        ? (str_starts_with($artist->imageUrl, 'http')
+                            ? $artist->imageUrl
+                            : rtrim(env('APP_URL', 'https://api.labarcaministerio.com'), '/') . $artist->imageUrl)
+                        : null,
+                ];
+            })
+            ->filter()
             ->values()
             ->all();
     }

@@ -77,8 +77,9 @@ Route::apiResource('products', ProductController::class);
 // Checkout de Entradas (Mercado Pago)
 Route::post('mercadopago/webhook', [TicketCheckoutController::class, 'handleWebhook']);
 
+Route::post('ticket-checkout', [TicketCheckoutController::class, 'createPreference']);
+
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('ticket-checkout', [TicketCheckoutController::class, 'createPreference']);
     Route::get('ticket-orders', [TicketOrderController::class, 'index']);
     Route::get('ticket-orders/{id}', [TicketOrderController::class, 'show']);
 });
@@ -153,4 +154,5 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('admin/press-inquiries/{pressInquiry}', [PressInquiryController::class, 'destroy']);
     Route::get('admin/promo-emails', [AdminPromotionEmailController::class, 'index']);
     Route::post('admin/promo-emails/send', [AdminPromotionEmailController::class, 'send']);
+    Route::post('admin/promo-emails/send-invitation', [AdminPromotionEmailController::class, 'sendInvitation']);
 });
