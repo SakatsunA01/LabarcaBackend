@@ -65,7 +65,8 @@
               <div class="value" style="margin-bottom: 8px;">Email: {{ $order->user->email }}</div>
               <div class="value" style="margin-bottom: 0;">Clave temporal: {{ $order->generated_login_password }}</div>
               <p style="margin: 10px 0 0; font-size: 12px; color: #6b7280;">
-                Inicia sesion y cambia tu clave desde tu perfil.
+                Inicia sesion y cambia tu clave desde tu perfil. Si no recuerdas la clave, usa
+                <a href="https://labarcaministerio.com/recuperar-password" style="color:#7a2233;">recuperar contrasena</a>.
               </p>
             </div>
           @endif

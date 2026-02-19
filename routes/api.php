@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\PromoInquiryController;
 use App\Http\Controllers\Api\ArtistCategoryController;
 use App\Http\Controllers\Api\PressInquiryController;
 use App\Http\Controllers\Api\AdminPromotionEmailController;
+use App\Http\Controllers\Api\PasswordResetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -52,6 +53,8 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/auth/google', [SocialAuthController::class, 'google']);
 Route::post('/auth/google/link', [SocialAuthController::class, 'linkGoogle'])->middleware('auth:sanctum');
 Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum'); // Protect logout
+Route::post('/password/request-code', [PasswordResetController::class, 'requestCode']);
+Route::post('/password/reset-with-code', [PasswordResetController::class, 'resetWithCode']);
 
 // Rutas para Artistas
 Route::apiResource('artistas', App\Http\Controllers\Api\ArtistaController::class);
