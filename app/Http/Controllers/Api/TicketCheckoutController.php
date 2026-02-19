@@ -7,10 +7,12 @@ use App\Mail\TicketOrderApprovedMail;
 use App\Models\Evento;
 use App\Models\Product;
 use App\Models\TicketOrder;
+use App\Models\User;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
@@ -53,8 +55,23 @@ class TicketCheckoutController extends Controller
             return response()->json(['message' => 'El producto no esta disponible.'], 422);
         }
 
+        $isAuthenticated = Auth::check();
+        $guestName = trim((string) $request->input('guest_name'));
+        $guestEmail = strtolower(trim((string) $request->input('guest_email')));
+        if (!$isAuthenticated) {
+            if ($guestName === '' || $guestEmail === '') {
+                return response()->json(['message' => 'Completa nombre y email para continuar.'], 422);
+            }
+        }
+
+        [$resolvedUserId, $generatedPassword] = $this->resolveCheckoutUser(
+            $isAuthenticated,
+            $guestName,
+            $guestEmail
+        );
+
         $requestedQuantity = (int) $request->input('quantity');
-        $promotionData = $this->resolvePromotionForQuantity($product, $requestedQuantity, Auth::id());
+        $promotionData = $this->resolvePromotionForQuantity($product, $requestedQuantity, $resolvedUserId);
         $totalQuantity = (int) $promotionData['total_quantity'];
         $paidQuantity = (int) $promotionData['paid_quantity'];
         $bonusQuantity = (int) $promotionData['bonus_quantity'];
@@ -62,15 +79,6 @@ class TicketCheckoutController extends Controller
 
         if ($product->stock < $totalQuantity) {
             return response()->json(['message' => 'No hay stock suficiente para esta compra.'], 422);
-        }
-
-        $isAuthenticated = Auth::check();
-        if (!$isAuthenticated) {
-            $guestName = trim((string) $request->input('guest_name'));
-            $guestEmail = trim((string) $request->input('guest_email'));
-            if ($guestName === '' || $guestEmail === '') {
-                return response()->json(['message' => 'Completa nombre y email para continuar.'], 422);
-            }
         }
 
         $paymentMethod = $request->input('payment_method', 'mercadopago');
@@ -86,9 +94,10 @@ class TicketCheckoutController extends Controller
             $order = TicketOrder::create([
                 'event_id' => $event->id,
                 'product_id' => $product->id,
-                'user_id' => Auth::id(),
-                'guest_name' => $isAuthenticated ? null : trim((string) $request->input('guest_name')),
-                'guest_email' => $isAuthenticated ? null : trim((string) $request->input('guest_email')),
+                'user_id' => $resolvedUserId,
+                'guest_name' => $isAuthenticated ? null : $guestName,
+                'guest_email' => $isAuthenticated ? null : $guestEmail,
+                'generated_login_password' => $generatedPassword,
                 'quantity' => $totalQuantity,
                 'paid_quantity' => $paidQuantity,
                 'bonus_quantity' => $bonusQuantity,
@@ -104,7 +113,7 @@ class TicketCheckoutController extends Controller
 
             $user = $request->user();
             $message = $this->buildCashWhatsappMessage(
-                $user?->name ?: (trim((string) $request->input('guest_name')) ?: 'Usuario'),
+                $user?->name ?: ($guestName ?: 'Usuario'),
                 $event->nombre,
                 $totalQuantity,
                 (int) $order->id,
@@ -133,9 +142,10 @@ class TicketCheckoutController extends Controller
         $order = TicketOrder::create([
             'event_id' => $event->id,
             'product_id' => $product->id,
-            'user_id' => Auth::id(),
-            'guest_name' => $isAuthenticated ? null : trim((string) $request->input('guest_name')),
-            'guest_email' => $isAuthenticated ? null : trim((string) $request->input('guest_email')),
+            'user_id' => $resolvedUserId,
+            'guest_name' => $isAuthenticated ? null : $guestName,
+            'guest_email' => $isAuthenticated ? null : $guestEmail,
+            'generated_login_password' => $generatedPassword,
             'quantity' => $totalQuantity,
             'paid_quantity' => $paidQuantity,
             'bonus_quantity' => $bonusQuantity,
@@ -276,6 +286,7 @@ class TicketCheckoutController extends Controller
             if ($email) {
                 Mail::to($email)->send(new TicketOrderApprovedMail($order));
                 $order->email_sent_at = now();
+                $order->generated_login_password = null;
                 $order->save();
             }
         }
@@ -377,5 +388,42 @@ class TicketCheckoutController extends Controller
             'total_quantity' => $paidQuantity + $bestBonus,
             'promotion' => $bestPromotion,
         ];
+    }
+
+    private function resolveCheckoutUser(bool $isAuthenticated, string $guestName, string $guestEmail): array
+    {
+        if ($isAuthenticated) {
+            return [Auth::id(), null];
+        }
+
+        $existing = User::where('email', $guestEmail)->first();
+        if ($existing) {
+            return [$existing->id, null];
+        }
+
+        $baseName = $this->buildPasswordBaseName($guestName);
+        $generatedPassword = $baseName . '123';
+
+        $user = User::create([
+            'name' => $guestName,
+            'email' => $guestEmail,
+            'password' => Hash::make($generatedPassword),
+            'phone' => null,
+            'belongs_to_church' => false,
+            'church_name' => null,
+            'pastor_name' => null,
+            'birth_date' => null,
+            'profile_incomplete' => true,
+            'admin_sn' => false,
+        ]);
+
+        return [$user->id, $generatedPassword];
+    }
+
+    private function buildPasswordBaseName(string $name): string
+    {
+        $firstWord = preg_split('/\s+/', trim($name))[0] ?? 'Invitado';
+        $clean = preg_replace('/[^a-zA-Z]/', '', $firstWord) ?: 'Invitado';
+        return ucfirst(strtolower($clean));
     }
 }

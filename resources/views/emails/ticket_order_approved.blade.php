@@ -59,6 +59,17 @@
             </div>
           </div>
 
+          @if($order->generated_login_password && $order->user?->email)
+            <div class="ticket" style="margin-top:12px;">
+              <div class="label">Acceso a tu cuenta</div>
+              <div class="value" style="margin-bottom: 8px;">Email: {{ $order->user->email }}</div>
+              <div class="value" style="margin-bottom: 0;">Clave temporal: {{ $order->generated_login_password }}</div>
+              <p style="margin: 10px 0 0; font-size: 12px; color: #6b7280;">
+                Inicia sesion y cambia tu clave desde tu perfil.
+              </p>
+            </div>
+          @endif
+
           @if($order->verification_token)
             <div class="qr">
               <p style="margin: 12px 0 0; font-size: 12px; color: #6b7280;">

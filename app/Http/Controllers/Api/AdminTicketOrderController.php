@@ -95,6 +95,7 @@ class AdminTicketOrderController extends Controller
         if ($order->status === 'approved' && !$order->email_sent_at && $email) {
             Mail::to($email)->send(new TicketOrderApprovedMail($order));
             $order->email_sent_at = now();
+            $order->generated_login_password = null;
             $order->save();
         }
 
@@ -119,6 +120,7 @@ class AdminTicketOrderController extends Controller
 
         Mail::to($email)->send(new TicketOrderApprovedMail($order));
         $order->email_sent_at = now();
+        $order->generated_login_password = null;
         $order->save();
 
         return response()->json(['message' => 'Email enviado.']);

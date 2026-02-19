@@ -23,6 +23,7 @@ class TicketOrder extends Model
         'status',
         'guest_name',
         'guest_email',
+        'generated_login_password',
         'expires_at',
         'approved_at',
         'email_sent_at',
