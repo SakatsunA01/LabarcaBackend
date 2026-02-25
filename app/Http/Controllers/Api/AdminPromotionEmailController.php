@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\EventBuyersNoticeMail;
 use App\Mail\EventInstitutionalInvitationMail;
 use App\Mail\TicketPromotionMail;
 use App\Models\Artista;
@@ -237,6 +238,73 @@ class AdminPromotionEmailController extends Controller
             'sent' => $sent,
             'skipped' => $skipped,
             'total' => $dedupedRecipients->count(),
+        ]);
+    }
+
+    public function sendBuyersNotice(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'event_id' => 'required|exists:eventos,id',
+            'mode' => 'required|in:test,send',
+            'test_email' => 'nullable|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $event = Evento::find($request->input('event_id'));
+        if (!$event) {
+            return response()->json(['message' => 'Evento no encontrado.'], 404);
+        }
+
+        $mode = $request->input('mode');
+        if ($mode === 'test') {
+            $testEmail = strtolower(trim((string) $request->input('test_email', '')));
+            if (!$testEmail || !filter_var($testEmail, FILTER_VALIDATE_EMAIL)) {
+                return response()->json(['message' => 'Ingresa un email de prueba valido.'], 422);
+            }
+
+            Mail::to($testEmail)->send(new EventBuyersNoticeMail($event));
+            return response()->json([
+                'message' => 'Prueba enviada.',
+                'sent' => 1,
+                'skipped' => 0,
+                'total' => 1,
+            ]);
+        }
+
+        $orders = TicketOrder::with(['user'])
+            ->where('event_id', $event->id)
+            ->whereIn('status', ['approved', 'approved_out_of_stock'])
+            ->orderByDesc('created_at')
+            ->get();
+
+        $recipients = $orders
+            ->map(function (TicketOrder $order) {
+                $email = strtolower(trim((string) ($order->user?->email ?: $order->guest_email)));
+                return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+            })
+            ->filter()
+            ->unique()
+            ->values();
+
+        $sent = 0;
+        $skipped = 0;
+        foreach ($recipients as $email) {
+            try {
+                Mail::to($email)->send(new EventBuyersNoticeMail($event));
+                $sent++;
+            } catch (\Throwable $e) {
+                $skipped++;
+            }
+        }
+
+        return response()->json([
+            'message' => 'Comunicado enviado.',
+            'sent' => $sent,
+            'skipped' => $skipped,
+            'total' => $recipients->count(),
         ]);
     }
 

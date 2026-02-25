@@ -158,4 +158,5 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/promo-emails', [AdminPromotionEmailController::class, 'index']);
     Route::post('admin/promo-emails/send', [AdminPromotionEmailController::class, 'send']);
     Route::post('admin/promo-emails/send-invitation', [AdminPromotionEmailController::class, 'sendInvitation']);
+    Route::post('admin/promo-emails/send-buyers-notice', [AdminPromotionEmailController::class, 'sendBuyersNotice']);
 });
