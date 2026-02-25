@@ -45,6 +45,34 @@
                 <p style="margin:0 0 18px;font-size:14px;line-height:1.7;">
                   Cualquier duda adicional, estamos a tu disposicion por este medio.
                 </p>
+                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:0 0 18px;">
+                  <tr>
+                    <td style="padding:0 0 8px;">
+                      <p style="margin:0;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#475569;font-weight:700;">Contactos WhatsApp</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <a href="https://wa.me/5491127768859" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:0 8px 8px 0;padding:10px 14px;border-radius:10px;background:#16a34a;color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;">
+                        Leonel - 11 2776-8859
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <a href="https://wa.me/5491130229504" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:0 8px 8px 0;padding:10px 14px;border-radius:10px;background:#16a34a;color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;">
+                        Malu - 11 3022-9504
+                      </a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>
+                      <a href="https://wa.me/5491160259671" target="_blank" rel="noopener noreferrer" style="display:inline-block;margin:0 8px 0 0;padding:10px 14px;border-radius:10px;background:#16a34a;color:#ffffff;text-decoration:none;font-size:12px;font-weight:700;">
+                        Sergio - 11 6025-9671
+                      </a>
+                    </td>
+                  </tr>
+                </table>
                 <p style="margin:0;font-size:14px;line-height:1.6;">
                   En Cristo,<br />
                   <strong>MaLu Quinteros</strong><br />
