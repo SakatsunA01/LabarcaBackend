@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\ArtistCategoryController;
 use App\Http\Controllers\Api\PressInquiryController;
 use App\Http\Controllers\Api\AdminPromotionEmailController;
 use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\EncouragementShareController;
 
 /*
 |--------------------------------------------------------------------------
@@ -67,7 +68,7 @@ Route::apiResource('artist-categories', ArtistCategoryController::class);
 // DELETE /api/artistas/{artista} -> ArtistaController@destroy
 
 // Rutas para Eventos
-Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class);
+Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class)->only(['index', 'show']);
 
 // Rutas para Lanzamientos
 // Custom route for latest releases
@@ -75,7 +76,7 @@ Route::get('lanzamientos/latest', [App\Http\Controllers\Api\LanzamientoControlle
 Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoController::class);
 
 // Rutas para Productos (Entradas)
-Route::apiResource('products', ProductController::class);
+Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 
 // Checkout de Entradas (Mercado Pago)
 Route::post('mercadopago/webhook', [TicketCheckoutController::class, 'handleWebhook']);
@@ -85,6 +86,7 @@ Route::post('ticket-checkout', [TicketCheckoutController::class, 'createPreferen
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('ticket-orders', [TicketOrderController::class, 'index']);
     Route::get('ticket-orders/{id}', [TicketOrderController::class, 'show']);
+    Route::post('encouragement/share-email', [EncouragementShareController::class, 'sendToAuthenticatedUser']);
 });
 
 // Rutas para Testimonios de Eventos
@@ -130,6 +132,8 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::get('admin/prayer-requests', [PrayerRequestController::class, 'indexAdmin']);
     Route::put('admin/prayer-requests/{id}', [PrayerRequestController::class, 'update']);
     Route::delete('admin/prayer-requests/{id}', [PrayerRequestController::class, 'destroy']);
