@@ -44,4 +44,11 @@ return [
         'client_id' => env('GOOGLE_CLIENT_ID'),
     ],
 
+    'spotify' => [
+        'client_id' => env('SPOTIFY_CLIENT_ID'),
+        'client_secret' => env('SPOTIFY_CLIENT_SECRET'),
+        'api_base_url' => env('SPOTIFY_API_BASE_URL', 'https://api.spotify.com/v1'),
+        'accounts_base_url' => env('SPOTIFY_ACCOUNTS_BASE_URL', 'https://accounts.spotify.com'),
+    ],
+
 ];
