@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Post;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -135,24 +136,25 @@ class NewsImportService
     {
         return [
             [
-                'key' => 'christian_today_main',
-                'name' => 'Christian Today',
-                'feed_url' => 'https://www.christiantoday.com/rss.xml',
-            ],
-            [
-                'key' => 'christian_today_world',
-                'name' => 'Christian Today World',
-                'feed_url' => 'https://www.christiantoday.com/world?format=xml',
-            ],
-            [
-                'key' => 'christian_today_church',
-                'name' => 'Christian Today Church',
-                'feed_url' => 'https://www.christiantoday.com/church?format=xml',
+                'key' => 'ag_news',
+                'name' => 'AG News',
+                'feed_url' => 'https://news.ag.org/rss',
+                'max_items' => 8,
+                'source_group' => 'pentecostal_core',
             ],
             [
                 'key' => 'charisma_news',
                 'name' => 'Charisma News',
-                'feed_url' => 'https://charismanews.com/feed/',
+                'feed_url' => 'https://mycharisma.com/feed/',
+                'max_items' => 8,
+                'source_group' => 'pentecostal_core',
+            ],
+            [
+                'key' => 'entrecristianos',
+                'name' => 'entreCristianos',
+                'feed_url' => 'https://www.entrecristianos.com/rss-en-entrecristianos/feed/',
+                'max_items' => 8,
+                'source_group' => 'spanish_secondary',
             ],
         ];
     }
@@ -168,11 +170,11 @@ class NewsImportService
         $xml = $this->parseXml($body);
 
         if (isset($xml->channel->item)) {
-            return iterator_to_array($xml->channel->item);
+            return array_slice(iterator_to_array($xml->channel->item), 0, (int) ($source['max_items'] ?? 10));
         }
 
         if (isset($xml->entry)) {
-            return iterator_to_array($xml->entry);
+            return array_slice(iterator_to_array($xml->entry), 0, (int) ($source['max_items'] ?? 10));
         }
 
         throw new RuntimeException('La fuente no devolvio items RSS validos.');
@@ -187,6 +189,8 @@ class NewsImportService
         $content = $this->extractContent($item);
         $imageUrl = $this->extractImageUrl($item);
         $warnings = [];
+        [$title, $content, $translationApplied] = $this->translateToSpanish($title, $content);
+        [$hopefulScore, $isHopeful, $hopefulSignals] = $this->evaluateHopefulTone($title, $content);
 
         if (!$imageUrl) {
             $warnings[] = 'missing_image';
@@ -196,11 +200,20 @@ class NewsImportService
             $warnings[] = 'short_content';
         }
 
+        if (!$translationApplied) {
+            $warnings[] = 'translation_not_applied';
+        }
+
+        if (!$isHopeful) {
+            $warnings[] = 'tone_needs_review';
+        }
+
         return [
             'candidate_id' => sha1(implode('|', [$source['key'], $link, $publishedAt, $title])),
             'selected' => true,
             'source_key' => $source['key'],
             'source_name' => $source['name'],
+            'source_group' => $source['source_group'] ?? 'general',
             'titulo' => $title,
             'contenido' => $content,
             'autor' => $author,
@@ -208,6 +221,10 @@ class NewsImportService
             'image_remote_url' => $imageUrl,
             'image_preview_url' => $imageUrl,
             'source_published_at' => $publishedAt,
+            'translation_applied' => $translationApplied,
+            'hopeful_score' => $hopefulScore,
+            'is_hopeful' => $isHopeful,
+            'hopeful_signals' => $hopefulSignals,
             'status' => empty($warnings) ? 'ready' : 'warning',
             'warnings' => $warnings,
         ];
@@ -352,6 +369,127 @@ class NewsImportService
         return trim($value);
     }
 
+    private function translateToSpanish(string $title, string $content): array
+    {
+        $apiKey = (string) config('services.gemini.api_key');
+        if ($apiKey === '') {
+            return [$title, $content, false];
+        }
+
+        $cacheKey = 'news-import-translation:' . sha1($title . '|' . $content);
+
+        return Cache::remember($cacheKey, now()->addDays(7), function () use ($apiKey, $title, $content) {
+            $model = config('services.gemini.model');
+            $apiBaseUrl = rtrim((string) config('services.gemini.api_base_url'), '/');
+            $prompt = <<<PROMPT
+Traduce al espanol neutro el siguiente material para un sitio cristiano.
+Devuelve solo JSON valido con estas claves:
+{"titulo":"...","contenido":"..."}
+
+Reglas:
+- No inventes datos.
+- Mantene nombres propios, citas biblicas y denominaciones cuando correspondan.
+- El contenido debe quedar natural en espanol.
+- No uses markdown ni bloques de codigo.
+
+Titulo:
+{$title}
+
+Contenido:
+{$content}
+PROMPT;
+
+            $response = Http::timeout(30)
+                ->acceptJson()
+                ->post("{$apiBaseUrl}/models/{$model}:generateContent?key={$apiKey}", [
+                    'contents' => [
+                        [
+                            'parts' => [
+                                ['text' => $prompt],
+                            ],
+                        ],
+                    ],
+                ])
+                ->throw()
+                ->json();
+
+            $text = $response['candidates'][0]['content']['parts'][0]['text'] ?? null;
+            if (!$text) {
+                return [$title, $content, false];
+            }
+
+            $decoded = $this->decodeJsonPayload($text);
+            if (!is_array($decoded) || empty($decoded['titulo']) || empty($decoded['contenido'])) {
+                return [$title, $content, false];
+            }
+
+            return [
+                Str::limit($this->sanitizeText((string) $decoded['titulo']), 255, ''),
+                Str::limit($this->sanitizeText((string) $decoded['contenido']), 6000, '...'),
+                true,
+            ];
+        });
+    }
+
+    private function decodeJsonPayload(string $text): ?array
+    {
+        $text = trim($text);
+
+        if (preg_match('/```(?:json)?\s*(\{.*\})\s*```/is', $text, $matches)) {
+            $text = $matches[1];
+        }
+
+        $decoded = json_decode($text, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function evaluateHopefulTone(string $title, string $content): array
+    {
+        $haystack = Str::lower($title . ' ' . $content);
+
+        $positiveKeywords = [
+            'avivamiento', 'revival', 'esperanza', 'hope', 'gozo', 'joy', 'alegr', 'celebra',
+            'testimonio', 'testimony', 'milagro', 'miracle', 'sanidad', 'healing', 'mision',
+            'mission', 'evangelismo', 'evangelism', 'iglesia crece', 'bautismo', 'worship',
+            'adoracion', 'jovenes', 'familia', 'conferencia', 'campamento', 'alabanza',
+            'comunidad', 'obra social', 'generosidad', 'discipulado', 'discipleship',
+        ];
+
+        $negativeKeywords = [
+            'escandalo', 'scandal', 'abuso', 'abuse', 'demanda', 'lawsuit', 'guerra', 'war',
+            'crimen', 'crime', 'muerte', 'death', 'fraude', 'fraud', 'politica', 'politics',
+            'persecucion', 'persecution', 'violencia', 'violence', 'arrest', 'arresto',
+            'controversia', 'controversy', 'crisis', 'ataque', 'attack',
+        ];
+
+        $positiveHits = [];
+        foreach ($positiveKeywords as $keyword) {
+            if (str_contains($haystack, $keyword)) {
+                $positiveHits[] = $keyword;
+            }
+        }
+
+        $negativeHits = [];
+        foreach ($negativeKeywords as $keyword) {
+            if (str_contains($haystack, $keyword)) {
+                $negativeHits[] = $keyword;
+            }
+        }
+
+        $score = count($positiveHits) - count($negativeHits);
+        $isHopeful = $score >= 1 || (count($positiveHits) >= 2 && count($negativeHits) === 0);
+
+        return [
+            $score,
+            $isHopeful,
+            [
+                'positive' => array_values(array_unique($positiveHits)),
+                'negative' => array_values(array_unique($negativeHits)),
+            ],
+        ];
+    }
+
     private function downloadImage(string $url, string $sourceName, string $title): string
     {
         $response = Http::timeout(20)->get($url)->throw();
@@ -438,6 +576,8 @@ class NewsImportService
             'url_origen' => trim((string) $candidate['url_origen']),
             'image_remote_url' => $candidate['image_remote_url'] ?? null,
             'source_published_at' => (string) $candidate['source_published_at'],
+            'translation_applied' => (bool) ($candidate['translation_applied'] ?? false),
+            'is_hopeful' => (bool) ($candidate['is_hopeful'] ?? false),
             'warnings' => is_array($candidate['warnings'] ?? null) ? $candidate['warnings'] : [],
         ];
     }
