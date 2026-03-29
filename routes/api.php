@@ -23,6 +23,7 @@ use App\Http\Controllers\Api\AdminPromotionEmailController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\EncouragementShareController;
 use App\Http\Controllers\Api\AdminLanzamientoImportController;
+use App\Http\Controllers\Api\AdminPostImportController;
 
 /*
 |--------------------------------------------------------------------------
@@ -166,4 +167,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/promo-emails/send-buyers-notice', [AdminPromotionEmailController::class, 'sendBuyersNotice']);
     Route::get('admin/lanzamientos/import/candidates', [AdminLanzamientoImportController::class, 'candidates']);
     Route::post('admin/lanzamientos/import', [AdminLanzamientoImportController::class, 'import']);
+    Route::get('admin/posts/import/candidates', [AdminPostImportController::class, 'candidates']);
+    Route::post('admin/posts/import', [AdminPostImportController::class, 'import']);
 });

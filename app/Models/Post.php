@@ -24,6 +24,9 @@ class Post extends Model
         'url_imagen',
         'autor',
         'fecha_publicacion',
+        'fuente',
+        'url_origen',
+        'origen_importado',
     ];
 
     /**
@@ -33,6 +36,7 @@ class Post extends Model
      */
     protected $casts = [
         'fecha_publicacion' => 'datetime',
+        'origen_importado' => 'boolean',
     ];
 
     /**
