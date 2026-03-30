@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Artista;
 use App\Models\Post;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -19,11 +20,12 @@ class NewsImportService
         $issues = [];
         $existingByUrl = $this->buildExistingByUrlMap();
         $existingBySignature = $this->buildExistingBySignatureMap();
+        $rosterNames = $this->getRosterNames();
 
         foreach ($this->getSources() as $source) {
             try {
                 foreach ($this->fetchFeedItems($source) as $item) {
-                    $candidate = $this->normalizeFeedItem($source, $item);
+                    $candidate = $this->normalizeFeedItem($source, $item, $rosterNames);
                     $signature = $this->makeExistingSignature($candidate['titulo'], $candidate['source_published_at']);
 
                     if (
@@ -50,8 +52,8 @@ class NewsImportService
         }
 
         usort($candidates, function (array $left, array $right) {
-            return [$right['source_published_at'], $left['source_name'], $left['titulo']]
-                <=> [$left['source_published_at'], $right['source_name'], $right['titulo']];
+            return [$right['relevance_score'], $right['source_published_at'], $left['source_name'], $left['titulo']]
+                <=> [$left['relevance_score'], $left['source_published_at'], $right['source_name'], $right['titulo']];
         });
 
         return [
@@ -149,13 +151,6 @@ class NewsImportService
                 'max_items' => 8,
                 'source_group' => 'pentecostal_core',
             ],
-            [
-                'key' => 'entrecristianos',
-                'name' => 'entreCristianos',
-                'feed_url' => 'https://www.entrecristianos.com/rss-en-entrecristianos/feed/',
-                'max_items' => 8,
-                'source_group' => 'spanish_secondary',
-            ],
         ];
     }
 
@@ -180,7 +175,7 @@ class NewsImportService
         throw new RuntimeException('La fuente no devolvio items RSS validos.');
     }
 
-    private function normalizeFeedItem(array $source, SimpleXMLElement $item): array
+    private function normalizeFeedItem(array $source, SimpleXMLElement $item, array $rosterNames): array
     {
         $title = $this->sanitizeText((string) ($item->title ?? 'Sin titulo'));
         $link = $this->extractItemLink($item);
@@ -191,6 +186,7 @@ class NewsImportService
         $warnings = [];
         [$title, $content, $translationApplied] = $this->translateToSpanish($title, $content);
         [$hopefulScore, $isHopeful, $hopefulSignals] = $this->evaluateHopefulTone($title, $content);
+        [$isRosterRelated, $mentionedArtists, $relevanceScore] = $this->evaluateRosterRelevance($title, $content, $rosterNames);
 
         if (!$imageUrl) {
             $warnings[] = 'missing_image';
@@ -206,6 +202,10 @@ class NewsImportService
 
         if (!$isHopeful) {
             $warnings[] = 'tone_needs_review';
+        }
+
+        if (!$isRosterRelated) {
+            $warnings[] = 'not_roster_related';
         }
 
         return [
@@ -225,6 +225,9 @@ class NewsImportService
             'hopeful_score' => $hopefulScore,
             'is_hopeful' => $isHopeful,
             'hopeful_signals' => $hopefulSignals,
+            'is_roster_related' => $isRosterRelated,
+            'mentioned_artists' => $mentionedArtists,
+            'relevance_score' => $relevanceScore,
             'status' => empty($warnings) ? 'ready' : 'warning',
             'warnings' => $warnings,
         ];
@@ -402,13 +405,9 @@ PROMPT;
             $response = Http::timeout(30)
                 ->acceptJson()
                 ->post("{$apiBaseUrl}/models/{$model}:generateContent?key={$apiKey}", [
-                    'contents' => [
-                        [
-                            'parts' => [
-                                ['text' => $prompt],
-                            ],
-                        ],
-                    ],
+                    'contents' => [[
+                        'parts' => [['text' => $prompt]],
+                    ]],
                 ])
                 ->throw()
                 ->json();
@@ -488,6 +487,98 @@ PROMPT;
                 'negative' => array_values(array_unique($negativeHits)),
             ],
         ];
+    }
+
+    private function evaluateRosterRelevance(string $title, string $content, array $rosterNames): array
+    {
+        if (empty($rosterNames)) {
+            return [false, [], 0];
+        }
+
+        $haystack = Str::lower($title . ' ' . $content);
+        $mentionedArtists = [];
+
+        foreach ($rosterNames as $artistName) {
+            $normalizedName = Str::lower(trim($artistName));
+            if ($normalizedName !== '' && str_contains($haystack, $normalizedName)) {
+                $mentionedArtists[] = $artistName;
+            }
+        }
+
+        $mentionedArtists = array_values(array_unique($mentionedArtists));
+        $relevanceScore = count($mentionedArtists);
+
+        if ($relevanceScore > 0) {
+            return [true, $mentionedArtists, $relevanceScore];
+        }
+
+        $apiKey = (string) config('services.gemini.api_key');
+        if ($apiKey === '') {
+            return [false, [], 0];
+        }
+
+        $rosterSample = implode(', ', array_slice($rosterNames, 0, 40));
+        $cacheKey = 'news-import-relevance:' . sha1($title . '|' . $content . '|' . $rosterSample);
+
+        return Cache::remember($cacheKey, now()->addDays(7), function () use ($apiKey, $title, $content, $rosterNames) {
+            $model = config('services.gemini.model');
+            $apiBaseUrl = rtrim((string) config('services.gemini.api_base_url'), '/');
+            $roster = implode(', ', array_slice($rosterNames, 0, 60));
+            $prompt = <<<PROMPT
+Evalua si la siguiente noticia esta relacionada con alguno de estos artistas o colaboradores vinculados a nuestro ministerio.
+
+Lista de referencia:
+{$roster}
+
+Devuelve solo JSON valido con estas claves:
+{"isRosterRelated":true,"mentionedArtists":["..."],"relevanceScore":2}
+
+Reglas:
+- Usa solo la informacion del titulo y contenido.
+- Si no hay relacion clara, responde false y lista vacia.
+- relevanceScore debe ir de 0 a 5.
+
+Titulo:
+{$title}
+
+Contenido:
+{$content}
+PROMPT;
+
+            $response = Http::timeout(30)
+                ->acceptJson()
+                ->post("{$apiBaseUrl}/models/{$model}:generateContent?key={$apiKey}", [
+                    'contents' => [[
+                        'parts' => [['text' => $prompt]],
+                    ]],
+                ])
+                ->throw()
+                ->json();
+
+            $text = $response['candidates'][0]['content']['parts'][0]['text'] ?? null;
+            $decoded = $text ? $this->decodeJsonPayload($text) : null;
+
+            if (!is_array($decoded)) {
+                return [false, [], 0];
+            }
+
+            return [
+                (bool) ($decoded['isRosterRelated'] ?? false),
+                array_values(array_filter($decoded['mentionedArtists'] ?? [], fn ($name) => is_string($name) && $name !== '')),
+                max(0, min(5, (int) ($decoded['relevanceScore'] ?? 0))),
+            ];
+        });
+    }
+
+    private function getRosterNames(): array
+    {
+        return Artista::query()
+            ->orderBy('name')
+            ->pluck('name')
+            ->filter(fn ($name) => is_string($name) && trim($name) !== '')
+            ->map(fn ($name) => trim($name))
+            ->values()
+            ->all();
     }
 
     private function downloadImage(string $url, string $sourceName, string $title): string
@@ -576,8 +667,6 @@ PROMPT;
             'url_origen' => trim((string) $candidate['url_origen']),
             'image_remote_url' => $candidate['image_remote_url'] ?? null,
             'source_published_at' => (string) $candidate['source_published_at'],
-            'translation_applied' => (bool) ($candidate['translation_applied'] ?? false),
-            'is_hopeful' => (bool) ($candidate['is_hopeful'] ?? false),
             'warnings' => is_array($candidate['warnings'] ?? null) ? $candidate['warnings'] : [],
         ];
     }

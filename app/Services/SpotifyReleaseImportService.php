@@ -15,8 +15,6 @@ class SpotifyReleaseImportService
     public function getCandidates(): array
     {
         $artists = Artista::query()
-            ->whereNotNull('social_spotifyProfile')
-            ->whereRaw("TRIM(social_spotifyProfile) <> ''")
             ->orderBy('name')
             ->get(['id', 'name', 'social_spotifyProfile']);
 
@@ -24,24 +22,40 @@ class SpotifyReleaseImportService
         $candidates = [];
         $existingByLink = $this->buildExistingByLinkMap();
         $existingBySignature = $this->buildExistingBySignatureMap();
+        $summary = [
+            'total_artists' => $artists->count(),
+            'artists_with_spotify' => 0,
+            'artists_without_spotify' => 0,
+            'artists_processed' => 0,
+            'artists_with_new_releases' => 0,
+            'artists_without_new_releases' => 0,
+            'releases_scanned' => 0,
+            'releases_skipped_existing' => 0,
+        ];
 
         foreach ($artists as $artist) {
             $spotifyArtistId = $this->extractArtistIdFromUrl($artist->social_spotifyProfile);
 
             if (!$spotifyArtistId) {
+                $summary['artists_without_spotify']++;
                 $issues[] = [
                     'artist_id' => $artist->id,
                     'artist_name' => $artist->name,
                     'status' => 'artist_without_spotify',
-                    'message' => 'El perfil de Spotify no tiene un artist_id válido.',
+                    'message' => 'El perfil de Spotify no tiene un artist_id valido o falta cargarlo.',
                 ];
                 continue;
             }
 
+            $summary['artists_with_spotify']++;
+            $summary['artists_processed']++;
+
             try {
                 $releases = $this->getArtistReleases($spotifyArtistId);
+                $artistHasNewReleases = false;
 
                 foreach ($releases as $release) {
+                    $summary['releases_scanned']++;
                     $detail = $this->getReleaseDetail($release['id']);
                     $candidate = $this->normalizeReleaseCandidate($artist, $detail);
 
@@ -55,10 +69,24 @@ class SpotifyReleaseImportService
                         ($candidate['spotify_link'] && isset($existingByLink[$candidate['artista_id']][$candidate['spotify_link']]))
                         || isset($existingBySignature[$signature])
                     ) {
+                        $summary['releases_skipped_existing']++;
                         continue;
                     }
 
                     $candidates[] = $candidate;
+                    $artistHasNewReleases = true;
+                }
+
+                if ($artistHasNewReleases) {
+                    $summary['artists_with_new_releases']++;
+                } else {
+                    $summary['artists_without_new_releases']++;
+                    $issues[] = [
+                        'artist_id' => $artist->id,
+                        'artist_name' => $artist->name,
+                        'status' => 'no_new_releases',
+                        'message' => 'Se pudo consultar Spotify, pero no se encontraron lanzamientos nuevos para importar.',
+                    ];
                 }
             } catch (\Throwable $exception) {
                 $issues[] = [
@@ -78,6 +106,7 @@ class SpotifyReleaseImportService
         return [
             'candidates' => array_values($candidates),
             'issues' => $issues,
+            'summary' => $summary,
         ];
     }
 
@@ -203,7 +232,7 @@ class SpotifyReleaseImportService
         $tracks = collect($release['tracks']['items'] ?? [])
             ->map(function (array $track) {
                 return [
-                    'titulo' => $track['name'] ?? 'Sin título',
+                    'titulo' => $track['name'] ?? 'Sin titulo',
                     'duracion' => $this->formatDuration($track['duration_ms'] ?? null),
                 ];
             })
@@ -225,7 +254,7 @@ class SpotifyReleaseImportService
             'selected' => true,
             'artista_id' => $artist->id,
             'artista_name' => $artist->name,
-            'titulo' => $release['name'] ?? 'Sin título',
+            'titulo' => $release['name'] ?? 'Sin titulo',
             'fecha_lanzamiento' => $this->normalizeReleaseDate($release['release_date'] ?? null, $release['release_date_precision'] ?? null),
             'spotify_link' => $release['external_urls']['spotify'] ?? null,
             'spotify_id' => $release['id'] ?? null,
@@ -314,7 +343,7 @@ class SpotifyReleaseImportService
                 ->json();
 
             if (empty($response['access_token'])) {
-                throw new RuntimeException('Spotify no devolvió access_token.');
+                throw new RuntimeException('Spotify no devolvio access_token.');
             }
 
             return $response['access_token'];
