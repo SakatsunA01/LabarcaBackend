@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\PressInquiryController;
 use App\Http\Controllers\Api\AdminPromotionEmailController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\EncouragementShareController;
+use App\Http\Controllers\Api\EncouragementGeneratorController;
 use App\Http\Controllers\Api\AdminLanzamientoImportController;
 use App\Http\Controllers\Api\AdminPostImportController;
 
@@ -44,6 +45,9 @@ Route::get('promo-video', [PromoVideoController::class, 'showPublic']);
 Route::get('promo-video/stream', [PromoVideoController::class, 'stream']);
 Route::post('promo-inquiries', [PromoInquiryController::class, 'store']);
 Route::post('press-inquiries', [PressInquiryController::class, 'store']);
+Route::post('encouragement/generate-verse', [EncouragementGeneratorController::class, 'generateVerse']);
+Route::post('encouragement/generate-context', [EncouragementGeneratorController::class, 'generateContext']);
+Route::post('encouragement/generate-prayer', [EncouragementGeneratorController::class, 'generatePrayer']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user()->load('socialAccounts');
