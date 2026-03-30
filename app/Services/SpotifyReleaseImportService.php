@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Http\Client\RequestException;
 use RuntimeException;
 
 class SpotifyReleaseImportService
@@ -96,7 +97,7 @@ class SpotifyReleaseImportService
                     'artist_id' => $artist->id,
                     'artist_name' => $artist->name,
                     'status' => 'spotify_fetch_error',
-                    'message' => $exception->getMessage(),
+                    'message' => $this->normalizeSpotifyErrorMessage($exception),
                 ];
             }
         }
@@ -225,7 +226,7 @@ class SpotifyReleaseImportService
         $response = $this->spotifyRequest()
             ->get(config('services.spotify.api_base_url') . "/artists/{$spotifyArtistId}/albums", [
                 'include_groups' => 'album,single',
-                'limit' => 50,
+                'limit' => 20,
                 'market' => 'AR',
             ])
             ->throw()
@@ -452,5 +453,28 @@ class SpotifyReleaseImportService
             'tracks' => $tracks,
             'warnings' => is_array($candidate['warnings'] ?? null) ? $candidate['warnings'] : [],
         ];
+    }
+
+    private function normalizeSpotifyErrorMessage(\Throwable $exception): string
+    {
+        if ($exception instanceof RequestException && $exception->response) {
+            $status = $exception->response->status();
+            $body = $exception->response->json();
+            $apiMessage = $body['error']['message'] ?? $body['message'] ?? null;
+
+            if ($status === 403 && is_string($apiMessage) && str_contains(Str::lower($apiMessage), 'premium subscription required')) {
+                return 'Spotify bloqueo la app con 403: la cuenta duena de la app necesita Spotify Premium activo.';
+            }
+
+            if ($status === 400 && is_string($apiMessage) && str_contains(Str::lower($apiMessage), 'invalid limit')) {
+                return 'Spotify rechazo la consulta por limite invalido. Se redujo el limite del importador, vuelve a probar.';
+            }
+
+            if (is_string($apiMessage) && $apiMessage !== '') {
+                return "Spotify respondio {$status}: {$apiMessage}";
+            }
+        }
+
+        return $exception->getMessage();
     }
 }
