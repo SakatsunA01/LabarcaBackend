@@ -16,7 +16,7 @@ class SpotifyReleaseImportService
     {
         $artists = Artista::query()
             ->orderBy('name')
-            ->get(['id', 'name', 'social_spotifyProfile']);
+            ->get(['id', 'name', 'social_spotifyProfile', 'spotifyEmbedUrl']);
 
         $issues = [];
         $candidates = [];
@@ -34,7 +34,10 @@ class SpotifyReleaseImportService
         ];
 
         foreach ($artists as $artist) {
-            $spotifyArtistId = $this->extractArtistIdFromUrl($artist->social_spotifyProfile);
+            $spotifyArtistId = $this->extractArtistId(
+                $artist->social_spotifyProfile,
+                $artist->spotifyEmbedUrl
+            );
 
             if (!$spotifyArtistId) {
                 $summary['artists_without_spotify']++;
@@ -42,7 +45,7 @@ class SpotifyReleaseImportService
                     'artist_id' => $artist->id,
                     'artist_name' => $artist->name,
                     'status' => 'artist_without_spotify',
-                    'message' => 'El perfil de Spotify no tiene un artist_id valido o falta cargarlo.',
+                    'message' => 'No se encontro un artist_id valido en Perfil de Spotify ni en URL Spotify Embed.',
                 ];
                 continue;
             }
@@ -186,14 +189,32 @@ class SpotifyReleaseImportService
         ];
     }
 
-    public function extractArtistIdFromUrl(?string $spotifyProfileUrl): ?string
+    public function extractArtistId(?string ...$values): ?string
     {
-        if (!$spotifyProfileUrl) {
+        foreach ($values as $value) {
+            $spotifyArtistId = $this->extractArtistIdFromValue($value);
+            if ($spotifyArtistId) {
+                return $spotifyArtistId;
+            }
+        }
+
+        return null;
+    }
+
+    private function extractArtistIdFromValue(?string $value): ?string
+    {
+        if (!$value) {
             return null;
         }
 
-        if (preg_match('~/artist/([a-zA-Z0-9]+)~', $spotifyProfileUrl, $matches)) {
+        $value = trim($value);
+
+        if (preg_match('~(?:/artist/|spotify:artist:)([a-zA-Z0-9]+)~', $value, $matches)) {
             return $matches[1];
+        }
+
+        if (preg_match('~^[a-zA-Z0-9]{22}$~', $value)) {
+            return $value;
         }
 
         return null;
