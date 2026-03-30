@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\Artista;
 use App\Models\Lanzamiento;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\Client\RequestException;
@@ -223,14 +225,7 @@ class SpotifyReleaseImportService
 
     private function getArtistReleases(string $spotifyArtistId): array
     {
-        $response = $this->spotifyRequest()
-            ->get(config('services.spotify.api_base_url') . "/artists/{$spotifyArtistId}/albums", [
-                'include_groups' => 'album,single',
-                'limit' => 20,
-                'market' => 'AR',
-            ])
-            ->throw()
-            ->json();
+        $response = $this->requestArtistReleasesWithFallback($spotifyArtistId);
 
         return collect($response['items'] ?? [])
             ->unique('id')
@@ -476,5 +471,81 @@ class SpotifyReleaseImportService
         }
 
         return $exception->getMessage();
+    }
+
+    private function requestArtistReleasesWithFallback(string $spotifyArtistId): array
+    {
+        $attempts = [
+            ['include_groups' => 'album,single', 'limit' => 10, 'offset' => 0, 'market' => 'AR'],
+            ['include_groups' => 'album,single', 'limit' => 5, 'offset' => 0, 'market' => 'AR'],
+            ['include_groups' => 'album,single', 'limit' => 10, 'offset' => 0],
+            ['include_groups' => 'album,single', 'limit' => 5, 'offset' => 0],
+        ];
+
+        $lastException = null;
+
+        foreach ($attempts as $params) {
+            try {
+                return $this->spotifyRequest()
+                    ->get(config('services.spotify.api_base_url') . "/artists/{$spotifyArtistId}/albums", $params)
+                    ->throw()
+                    ->json();
+            } catch (\Throwable $exception) {
+                $lastException = $exception;
+                $this->logSpotifyAttemptFailure($spotifyArtistId, $params, $exception);
+
+                if (!$this->shouldRetryArtistAlbumsRequest($exception)) {
+                    throw $exception;
+                }
+            }
+        }
+
+        throw $lastException ?? new RuntimeException('Spotify no devolvio lanzamientos y no se pudo determinar la causa.');
+    }
+
+    private function shouldRetryArtistAlbumsRequest(\Throwable $exception): bool
+    {
+        if (!$exception instanceof RequestException || !$exception->response) {
+            return false;
+        }
+
+        $status = $exception->response->status();
+        $body = $exception->response->json();
+        $apiMessage = Str::lower((string) ($body['error']['message'] ?? $body['message'] ?? ''));
+
+        return $status === 400 && (
+            str_contains($apiMessage, 'invalid limit')
+            || str_contains($apiMessage, 'invalid market')
+            || str_contains($apiMessage, 'offset')
+        );
+    }
+
+    private function logSpotifyAttemptFailure(string $spotifyArtistId, array $params, \Throwable $exception): void
+    {
+        if (!$exception instanceof RequestException || !$exception->response) {
+            Log::warning('Spotify artist albums request failed before response.', [
+                'artist_id' => $spotifyArtistId,
+                'params' => $params,
+                'message' => $exception->getMessage(),
+            ]);
+            return;
+        }
+
+        $response = $exception->response;
+
+        Log::warning('Spotify artist albums request failed.', [
+            'artist_id' => $spotifyArtistId,
+            'url' => (string) $response->effectiveUri(),
+            'params' => $params,
+            'status' => $response->status(),
+            'body' => $this->extractResponseBodyForLogs($response),
+        ]);
+    }
+
+    private function extractResponseBodyForLogs(Response $response): string
+    {
+        $body = $response->body();
+
+        return Str::limit($body, 3000, '...');
     }
 }
