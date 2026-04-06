@@ -45,7 +45,7 @@ return new class extends Migration
             $table->boolean('track_stock')->default(true);
             $table->timestamps();
 
-            $table->index(['is_active', 'is_featured', 'featured_order']);
+            $table->index(['is_active', 'is_featured', 'featured_order'], 'shop_products_featured_idx');
         });
 
         Schema::create('shop_product_variants', function (Blueprint $table) {
@@ -73,7 +73,7 @@ return new class extends Migration
             $table->boolean('is_primary')->default(false);
             $table->timestamps();
 
-            $table->index(['shop_product_id', 'media_type', 'sort_order']);
+            $table->index(['shop_product_id', 'media_type', 'sort_order'], 'shop_product_media_lookup_idx');
         });
 
         Schema::create('shop_promotions', function (Blueprint $table) {
@@ -92,7 +92,7 @@ return new class extends Migration
             $table->timestamp('ends_at')->nullable();
             $table->timestamps();
 
-            $table->index(['promotion_type', 'is_active']);
+            $table->index(['promotion_type', 'is_active'], 'shop_promotions_active_idx');
         });
 
         Schema::create('artist_shop_product', function (Blueprint $table) {
@@ -100,7 +100,7 @@ return new class extends Migration
             $table->foreignId('artist_id')->constrained('artistas')->cascadeOnDelete();
             $table->foreignId('shop_product_id')->constrained('shop_products')->cascadeOnDelete();
             $table->timestamps();
-            $table->unique(['artist_id', 'shop_product_id']);
+            $table->unique(['artist_id', 'shop_product_id'], 'artist_shop_product_unique');
         });
 
         Schema::create('evento_shop_product', function (Blueprint $table) {
@@ -108,7 +108,7 @@ return new class extends Migration
             $table->foreignId('evento_id')->constrained('eventos')->cascadeOnDelete();
             $table->foreignId('shop_product_id')->constrained('shop_products')->cascadeOnDelete();
             $table->timestamps();
-            $table->unique(['evento_id', 'shop_product_id']);
+            $table->unique(['evento_id', 'shop_product_id'], 'evento_shop_product_unique');
         });
 
         Schema::create('shop_promotion_shop_product', function (Blueprint $table) {
@@ -117,7 +117,7 @@ return new class extends Migration
             $table->foreignId('shop_product_id')->constrained('shop_products')->cascadeOnDelete();
             $table->unsignedInteger('required_quantity')->default(1);
             $table->timestamps();
-            $table->unique(['shop_promotion_id', 'shop_product_id']);
+            $table->unique(['shop_promotion_id', 'shop_product_id'], 'shop_promo_product_unique');
         });
 
         Schema::create('shop_orders', function (Blueprint $table) {
@@ -150,7 +150,7 @@ return new class extends Migration
             $table->string('mp_checkout_url')->nullable();
             $table->timestamps();
 
-            $table->index(['status', 'delivery_method']);
+            $table->index(['status', 'delivery_method'], 'shop_orders_status_delivery_idx');
         });
 
         Schema::create('shop_order_items', function (Blueprint $table) {
@@ -169,7 +169,7 @@ return new class extends Migration
             $table->json('promotion_snapshot')->nullable();
             $table->timestamps();
 
-            $table->index(['shop_order_id', 'shop_product_id']);
+            $table->index(['shop_order_id', 'shop_product_id'], 'shop_order_items_order_product_idx');
         });
     }
 
