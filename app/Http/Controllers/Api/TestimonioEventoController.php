@@ -82,16 +82,39 @@ class TestimonioEventoController extends Controller
             return response()->json(['message' => 'Testimonio no encontrado'], 404);
         }
 
-        // Optional: Check if the user is authorized to update the testimony
-        if ($testimonio->usuario_id !== Auth::id()) {
+        $isAdmin = Auth::check() && Auth::user()->admin_sn;
+        $isOwner = $testimonio->usuario_id === Auth::id();
+
+        if (!$isAdmin && !$isOwner) {
             return response()->json(['message' => 'No autorizado'], 403);
         }
 
-        $request->validate([
-            'comentario' => 'required|string',
-        ]);
+        $rules = [];
+        if ($request->has('comentario')) {
+            $rules['comentario'] = 'required|string';
+        }
+        if ($request->has('approved')) {
+            $rules['approved'] = 'required|boolean';
+        }
+        $request->validate($rules);
 
-        $testimonio->update($request->only('comentario'));
+        if ($request->has('approved') && !$isAdmin) {
+            return response()->json(['message' => 'No autorizado para aprobar testimonios'], 403);
+        }
+
+        $payload = [];
+        if ($request->has('comentario') && $isOwner) {
+            $payload['comentario'] = $request->input('comentario');
+        }
+        if ($request->has('approved') && $isAdmin) {
+            $payload['approved'] = (bool) $request->input('approved');
+        }
+
+        if (empty($payload)) {
+            return response()->json(['message' => 'No hay cambios para guardar'], 422);
+        }
+
+        $testimonio->update($payload);
 
         return response()->json($testimonio);
     }

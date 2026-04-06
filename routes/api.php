@@ -169,6 +169,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/promo-emails/send', [AdminPromotionEmailController::class, 'send']);
     Route::post('admin/promo-emails/send-invitation', [AdminPromotionEmailController::class, 'sendInvitation']);
     Route::post('admin/promo-emails/send-buyers-notice', [AdminPromotionEmailController::class, 'sendBuyersNotice']);
+    Route::post('admin/promo-emails/send-post-thanks', [AdminPromotionEmailController::class, 'sendPostThanks']);
     Route::get('admin/lanzamientos/import/candidates', [AdminLanzamientoImportController::class, 'candidates']);
     Route::post('admin/lanzamientos/import', [AdminLanzamientoImportController::class, 'import']);
     Route::get('admin/posts/import/candidates', [AdminPostImportController::class, 'candidates']);

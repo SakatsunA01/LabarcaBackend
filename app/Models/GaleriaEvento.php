@@ -9,7 +9,11 @@ class GaleriaEvento extends Model
 {
     use HasFactory;
     protected $table = 'galerias_eventos';
-    protected $fillable = ['id_evento', 'url_imagen', 'descripcion']; // Aseguramos que 'url_imagen' sea fillable
+    protected $fillable = ['id_evento', 'url_imagen', 'media_type', 'descripcion'];
+
+    protected $attributes = [
+        'media_type' => 'image',
+    ];
 
     public function evento()
     {
