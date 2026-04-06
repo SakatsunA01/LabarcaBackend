@@ -160,6 +160,7 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
+    Route::get('admin/eventos/{eventoId}/testimonios', [App\Http\Controllers\Api\TestimonioEventoController::class, 'indexForEvento']);
     Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
     Route::get('admin/shop/categories', [ShopCategoryController::class, 'index']);
