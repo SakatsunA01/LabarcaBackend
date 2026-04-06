@@ -25,6 +25,13 @@ use App\Http\Controllers\Api\EncouragementShareController;
 use App\Http\Controllers\Api\EncouragementGeneratorController;
 use App\Http\Controllers\Api\AdminLanzamientoImportController;
 use App\Http\Controllers\Api\AdminPostImportController;
+use App\Http\Controllers\Api\Shop\ShopCategoryController;
+use App\Http\Controllers\Api\Shop\ShopCheckoutController;
+use App\Http\Controllers\Api\Shop\ShopOrderController;
+use App\Http\Controllers\Api\Shop\ShopProductController;
+use App\Http\Controllers\Api\Shop\ShopProductTypeController;
+use App\Http\Controllers\Api\Shop\ShopPromotionController;
+use App\Http\Controllers\Api\Shop\ShopShippingController;
 
 /*
 |--------------------------------------------------------------------------
@@ -84,6 +91,21 @@ Route::apiResource('lanzamientos', App\Http\Controllers\Api\LanzamientoControlle
 // Rutas para Productos (Entradas)
 Route::apiResource('products', ProductController::class)->only(['index', 'show']);
 
+Route::prefix('shop')->group(function () {
+    Route::get('categories', [ShopCategoryController::class, 'index']);
+    Route::get('categories/{id}', [ShopCategoryController::class, 'show']);
+    Route::get('product-types', [ShopProductTypeController::class, 'index']);
+    Route::get('product-types/{id}', [ShopProductTypeController::class, 'show']);
+    Route::get('products', [ShopProductController::class, 'index']);
+    Route::get('products/{id}', [ShopProductController::class, 'show']);
+    Route::get('promotions', [ShopPromotionController::class, 'index']);
+    Route::get('promotions/{id}', [ShopPromotionController::class, 'show']);
+    Route::get('orders/{id}', [ShopOrderController::class, 'show']);
+    Route::post('shipping/quote', [ShopShippingController::class, 'quote']);
+    Route::post('checkout', [ShopCheckoutController::class, 'createPreference']);
+    Route::post('mercadopago/webhook', [ShopCheckoutController::class, 'handleWebhook']);
+});
+
 // Checkout de Entradas (Mercado Pago)
 Route::post('mercadopago/webhook', [TicketCheckoutController::class, 'handleWebhook']);
 
@@ -140,6 +162,15 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::apiResource('eventos', App\Http\Controllers\Api\EventoController::class)->only(['store', 'update', 'destroy']);
     Route::apiResource('products', ProductController::class)->only(['store', 'update', 'destroy']);
+    Route::get('admin/shop/categories', [ShopCategoryController::class, 'index']);
+    Route::apiResource('admin/shop/categories', ShopCategoryController::class)->only(['store', 'update', 'destroy']);
+    Route::get('admin/shop/product-types', [ShopProductTypeController::class, 'index']);
+    Route::apiResource('admin/shop/product-types', ShopProductTypeController::class)->only(['store', 'update', 'destroy']);
+    Route::get('admin/shop/products', [ShopProductController::class, 'adminIndex']);
+    Route::apiResource('admin/shop/products', ShopProductController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('admin/shop/promotions', ShopPromotionController::class)->only(['store', 'update', 'destroy']);
+    Route::get('admin/shop/orders', [ShopOrderController::class, 'index']);
+    Route::get('admin/shop/orders/{id}', [ShopOrderController::class, 'show']);
     Route::get('admin/prayer-requests', [PrayerRequestController::class, 'indexAdmin']);
     Route::put('admin/prayer-requests/{id}', [PrayerRequestController::class, 'update']);
     Route::delete('admin/prayer-requests/{id}', [PrayerRequestController::class, 'destroy']);

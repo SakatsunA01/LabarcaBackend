@@ -60,4 +60,10 @@ class Evento extends Model
     {
         return $this->belongsTo(Product::class, 'vip_product_id');
     }
+
+    public function shopProducts()
+    {
+        return $this->belongsToMany(ShopProduct::class, 'evento_shop_product', 'evento_id', 'shop_product_id')
+            ->withTimestamps();
+    }
 }

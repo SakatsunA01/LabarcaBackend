@@ -39,6 +39,12 @@ class Artista extends Model
         return $this->belongsToMany(ArtistCategory::class, 'artist_category_pivot', 'artist_id', 'category_id');
     }
 
+    public function shopProducts()
+    {
+        return $this->belongsToMany(ShopProduct::class, 'artist_shop_product', 'artist_id', 'shop_product_id')
+            ->withTimestamps();
+    }
+
     // Laravel maneja created_at y updated_at por defecto si los campos existen
     // y son de tipo TIMESTAMP. Si no quieres que Laravel los maneje:
     // public $timestamps = false;
