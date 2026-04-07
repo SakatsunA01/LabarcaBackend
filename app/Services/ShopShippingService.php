@@ -7,7 +7,7 @@ use RuntimeException;
 
 class ShopShippingService
 {
-    public function quote(string $destinationAddress): array
+    public function quote(string $destinationAddress, ?string $fallbackDestination = null): array
     {
         $apiKey = config('services.openrouteservice.api_key');
         $originAddress = trim((string) config('services.shop.origin_address', 'Alsina 5651, Billinghurst, Buenos Aires, Argentina'));
@@ -17,8 +17,9 @@ class ShopShippingService
             throw new RuntimeException('OpenRouteService no esta configurado para calcular envios.');
         }
 
-        $originCoords = $this->geocodeAddress($originAddress, $apiKey);
-        $destinationCoords = $this->geocodeAddress($destinationAddress, $apiKey);
+        $originCoords = $this->geocodeAddressCandidates([$originAddress], $apiKey);
+        $destinationCandidates = array_values(array_filter([$destinationAddress, $fallbackDestination]));
+        $destinationCoords = $this->geocodeAddressCandidates($destinationCandidates, $apiKey);
 
         $response = Http::timeout(25)->get('https://api.openrouteservice.org/v2/directions/driving-car', [
             'api_key' => $apiKey,
@@ -57,36 +58,43 @@ class ShopShippingService
         ];
     }
 
-    private function geocodeAddress(string $address, string $apiKey): array
+    private function geocodeAddressCandidates(array $addresses, string $apiKey): array
     {
-        $queries = [
-            [
-                'api_key' => $apiKey,
-                'text' => $address,
-                'size' => 1,
-                'boundary.country' => 'AR',
-            ],
-            [
-                'api_key' => $apiKey,
-                'text' => $address . ', Argentina',
-                'size' => 1,
-            ],
-        ];
-
-        foreach ($queries as $query) {
-            $response = Http::timeout(25)->get('https://api.openrouteservice.org/geocode/search', $query);
-            if (!$response->successful()) {
+        foreach ($addresses as $address) {
+            $address = trim((string) $address);
+            if ($address === '') {
                 continue;
             }
 
-            $payload = $response->json();
-            $feature = $payload['features'][0] ?? null;
-            $coords = $feature['geometry']['coordinates'] ?? null;
-            if (is_array($coords) && count($coords) >= 2) {
-                return [
-                    'lon' => $coords[0],
-                    'lat' => $coords[1],
-                ];
+            $queries = [
+                [
+                    'api_key' => $apiKey,
+                    'text' => $address,
+                    'size' => 1,
+                    'boundary.country' => 'AR',
+                ],
+                [
+                    'api_key' => $apiKey,
+                    'text' => $address . ', Argentina',
+                    'size' => 1,
+                ],
+            ];
+
+            foreach ($queries as $query) {
+                $response = Http::timeout(25)->get('https://api.openrouteservice.org/geocode/search', $query);
+                if (!$response->successful()) {
+                    continue;
+                }
+
+                $payload = $response->json();
+                $feature = $payload['features'][0] ?? null;
+                $coords = $feature['geometry']['coordinates'] ?? null;
+                if (is_array($coords) && count($coords) >= 2) {
+                    return [
+                        'lon' => $coords[0],
+                        'lat' => $coords[1],
+                    ];
+                }
             }
         }
 

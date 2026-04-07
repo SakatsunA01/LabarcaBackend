@@ -40,10 +40,16 @@ class ShopShippingController extends Controller
             return response()->json(['message' => 'La direccion es obligatoria para calcular el envio.'], 422);
         }
 
+        $fallbackDestination = collect([
+            Arr::get($validated, 'city'),
+            Arr::get($validated, 'state'),
+            Arr::get($validated, 'country'),
+        ])->filter()->implode(', ');
+
         try {
             return response()->json([
                 'delivery_method' => 'shipping',
-                ...$shippingService->quote($destination),
+                ...$shippingService->quote($destination, $fallbackDestination ?: null),
             ]);
         } catch (\Throwable $exception) {
             return response()->json(['message' => $exception->getMessage()], 422);
