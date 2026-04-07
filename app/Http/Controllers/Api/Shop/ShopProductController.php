@@ -478,8 +478,8 @@ class ShopProductController extends Controller
             'id' => $item->id,
             'media_type' => $item->media_type,
             'type' => $item->media_type,
-            'url' => $item->url,
-            'thumbnail_url' => $item->thumbnail_url,
+            'url' => $this->normalizeStorageUrl($item->url),
+            'thumbnail_url' => $this->normalizeStorageUrl($item->thumbnail_url),
             'alt_text' => $item->alt_text,
             'sort_order' => $item->sort_order,
             'is_primary' => (bool) $item->is_primary,
@@ -528,6 +528,7 @@ class ShopProductController extends Controller
 
         $primaryMedia = $media->firstWhere('is_primary', true) ?: $media->first();
         $primaryImage = $product->image_url ?: ($primaryMedia['url'] ?? null);
+        $primaryImage = $this->normalizeStorageUrl($primaryImage);
         $eventCollection = $product->eventos->map(fn (Evento $event) => [
             'id' => $event->id,
             'nombre' => $event->nombre,
@@ -549,7 +550,7 @@ class ShopProductController extends Controller
             'base_stock' => (int) $product->stock,
             'available_stock' => $availableStock,
             'has_variants' => $variants->isNotEmpty(),
-            'image_url' => $product->image_url,
+            'image_url' => $this->normalizeStorageUrl($product->image_url),
             'primary_image_url' => $primaryImage,
             'is_active' => (bool) $product->is_active,
             'is_featured' => (bool) $product->is_featured,
@@ -589,6 +590,29 @@ class ShopProductController extends Controller
             'events' => $eventCollection,
             'eventos' => $eventCollection,
         ];
+    }
+
+    private function normalizeStorageUrl(?string $value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        if (Str::startsWith($value, ['http://', 'https://'])) {
+            return $value;
+        }
+
+        $normalized = Str::startsWith($value, '/') ? $value : '/' . $value;
+
+        if (Str::startsWith($normalized, ['/storage/', '/public/storage/'])) {
+            return $normalized;
+        }
+
+        if (Str::startsWith($normalized, ['/public/', '/storage/'])) {
+            return $normalized;
+        }
+
+        return '/public/storage' . $normalized;
     }
 
     private function parseJsonArray(mixed $value): ?array
