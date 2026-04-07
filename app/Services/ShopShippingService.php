@@ -21,13 +21,21 @@ class ShopShippingService
         $destinationCandidates = array_values(array_filter([$destinationAddress, $fallbackDestination]));
         $destinationCoords = $this->geocodeAddressCandidates($destinationCandidates, $apiKey);
 
-        $response = Http::timeout(25)->get('https://api.openrouteservice.org/v2/directions/driving-car', [
-            'api_key' => $apiKey,
-            'start' => $originCoords['lon'] . ',' . $originCoords['lat'],
-            'end' => $destinationCoords['lon'] . ',' . $destinationCoords['lat'],
-        ]);
+        $response = Http::timeout(25)
+            ->withHeaders(['Authorization' => $apiKey])
+            ->get('https://api.openrouteservice.org/v2/directions/driving-car', [
+                'api_key' => $apiKey,
+                'start' => $originCoords['lon'] . ',' . $originCoords['lat'],
+                'end' => $destinationCoords['lon'] . ',' . $destinationCoords['lat'],
+            ]);
 
         if (!$response->successful()) {
+            if (in_array($response->status(), [401, 403], true)) {
+                throw new RuntimeException('OpenRouteService no autorizado. Revisá OPENROUTESERVICE_API_KEY.');
+            }
+            if ($response->status() === 429) {
+                throw new RuntimeException('OpenRouteService excedio el limite de consultas. Intentá mas tarde.');
+            }
             throw new RuntimeException('No se pudo consultar OpenRouteService para calcular el envio.');
         }
 
@@ -81,8 +89,16 @@ class ShopShippingService
             ];
 
             foreach ($queries as $query) {
-                $response = Http::timeout(25)->get('https://api.openrouteservice.org/geocode/search', $query);
+                $response = Http::timeout(25)
+                    ->withHeaders(['Authorization' => $apiKey])
+                    ->get('https://api.openrouteservice.org/geocode/search', $query);
                 if (!$response->successful()) {
+                    if (in_array($response->status(), [401, 403], true)) {
+                        throw new RuntimeException('OpenRouteService no autorizado. Revisá OPENROUTESERVICE_API_KEY.');
+                    }
+                    if ($response->status() === 429) {
+                        throw new RuntimeException('OpenRouteService excedio el limite de consultas. Intentá mas tarde.');
+                    }
                     continue;
                 }
 
