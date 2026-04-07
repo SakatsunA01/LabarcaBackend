@@ -59,28 +59,38 @@ class ShopShippingService
 
     private function geocodeAddress(string $address, string $apiKey): array
     {
-        $response = Http::timeout(25)->get('https://api.openrouteservice.org/geocode/search', [
-            'api_key' => $apiKey,
-            'text' => $address,
-            'size' => 1,
-            'boundary.country' => 'AR',
-        ]);
-
-        if (!$response->successful()) {
-            throw new RuntimeException('No se pudo geocodificar la direccion para calcular el envio.');
-        }
-
-        $payload = $response->json();
-        $feature = $payload['features'][0] ?? null;
-        $coords = $feature['geometry']['coordinates'] ?? null;
-        if (!is_array($coords) || count($coords) < 2) {
-            throw new RuntimeException('La direccion ingresada no pudo ubicarse.');
-        }
-
-        return [
-            'lon' => $coords[0],
-            'lat' => $coords[1],
+        $queries = [
+            [
+                'api_key' => $apiKey,
+                'text' => $address,
+                'size' => 1,
+                'boundary.country' => 'AR',
+            ],
+            [
+                'api_key' => $apiKey,
+                'text' => $address . ', Argentina',
+                'size' => 1,
+            ],
         ];
+
+        foreach ($queries as $query) {
+            $response = Http::timeout(25)->get('https://api.openrouteservice.org/geocode/search', $query);
+            if (!$response->successful()) {
+                continue;
+            }
+
+            $payload = $response->json();
+            $feature = $payload['features'][0] ?? null;
+            $coords = $feature['geometry']['coordinates'] ?? null;
+            if (is_array($coords) && count($coords) >= 2) {
+                return [
+                    'lon' => $coords[0],
+                    'lat' => $coords[1],
+                ];
+            }
+        }
+
+        throw new RuntimeException('No se pudo geocodificar la direccion para calcular el envio.');
     }
 
     private function formatDistance(float $distanceKm): string
