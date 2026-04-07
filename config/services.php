@@ -53,6 +53,10 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'openrouteservice' => [
+        'api_key' => env('OPENROUTESERVICE_API_KEY'),
+    ],
+
     'shop' => [
         'origin_address' => env('SHOP_ORIGIN_ADDRESS', 'Alsina 5651, Billinghurst, Buenos Aires, Argentina'),
         'shipping_rate_per_km' => env('SHOP_SHIPPING_COST_PER_KM', env('SHOP_SHIPPING_RATE_PER_KM', 800)),
