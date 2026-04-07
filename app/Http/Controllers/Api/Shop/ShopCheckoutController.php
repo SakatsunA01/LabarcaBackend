@@ -7,12 +7,14 @@ use App\Models\ShopOrder;
 use App\Models\ShopProduct;
 use App\Models\ShopProductVariant;
 use App\Models\ShopPromotion;
+use App\Mail\ShopOrderConfirmedMail;
 use App\Services\ShopShippingService;
 use GuzzleHttp\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Validator;
 
 class ShopCheckoutController extends Controller
@@ -345,6 +347,8 @@ class ShopCheckoutController extends Controller
 
         $status = $paymentData['status'] ?? 'unknown';
 
+        $wasPaid = $order->status === 'paid';
+
         DB::transaction(function () use ($order, $status, $paymentId) {
             $order->mp_payment_id = (string) $paymentId;
 
@@ -385,6 +389,18 @@ class ShopCheckoutController extends Controller
 
             $order->save();
         });
+
+        if (!$wasPaid && $order->status === 'paid' && $order->customer_email) {
+            try {
+                $order->loadMissing('items');
+                Mail::to($order->customer_email)->send(new ShopOrderConfirmedMail($order));
+            } catch (\Throwable $exception) {
+                Log::warning('No se pudo enviar email de compra de shop', [
+                    'order_id' => $order->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
 
         return response()->json(['message' => 'OK'], 200);
     }
