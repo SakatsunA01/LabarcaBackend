@@ -26,6 +26,8 @@ use App\Http\Controllers\Api\EncouragementGeneratorController;
 use App\Http\Controllers\Api\AdminLanzamientoImportController;
 use App\Http\Controllers\Api\AdminPostImportController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\MediaFileController;
+use App\Http\Controllers\Api\AdminMediaController;
 use App\Http\Controllers\Api\Shop\ShopCategoryController;
 use App\Http\Controllers\Api\Shop\ShopCheckoutController;
 use App\Http\Controllers\Api\Shop\ShopOrderController;
@@ -218,4 +220,24 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/users/{user}/roles', [RoleController::class, 'userRoles']);
     Route::post('admin/users/{user}/roles', [RoleController::class, 'assignRole']);
     Route::delete('admin/users/{user}/roles/{role}', [RoleController::class, 'removeRole']);
+
+    // Multimedia — vista admin
+    Route::get('admin/media', [AdminMediaController::class, 'index']);
+    Route::patch('admin/media/{mediaFile}/downloadable', [AdminMediaController::class, 'toggleDownloadable']);
+    Route::delete('admin/media/{mediaFile}', [AdminMediaController::class, 'destroy']);
+});
+
+// Multimedia — categorías (público)
+Route::get('media/categories', [MediaFileController::class, 'categories']);
+
+// Multimedia — archivos de un artista (cliente, requiere auth)
+Route::middleware('auth:sanctum')->get('media/artistas/{artista}', [MediaFileController::class, 'artistaFiles']);
+
+// Multimedia — gestión propia del artista
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('media/files', [MediaFileController::class, 'index']);
+    Route::post('media/files', [MediaFileController::class, 'store']);
+    Route::put('media/files/{mediaFile}', [MediaFileController::class, 'update']);
+    Route::delete('media/files/{mediaFile}', [MediaFileController::class, 'destroy']);
+    Route::get('media/files/{mediaFile}/download', [MediaFileController::class, 'download']);
 });

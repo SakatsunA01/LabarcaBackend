@@ -93,6 +93,11 @@ class User extends Authenticatable
         return $this->hasMany(UserSocialAccount::class);
     }
 
+    public function mediaFiles(): HasMany
+    {
+        return $this->hasMany(MediaFile::class);
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class, 'user_roles')

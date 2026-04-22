@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Models\ArtistCategory;
 
 class Artista extends Model
@@ -48,4 +49,9 @@ class Artista extends Model
     // Laravel maneja created_at y updated_at por defecto si los campos existen
     // y son de tipo TIMESTAMP. Si no quieres que Laravel los maneje:
     // public $timestamps = false;
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 }
