@@ -16,8 +16,11 @@ class AdminMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        if (Auth::check() && Auth::user()->admin_sn) {
-            return $next($request);
+        if (Auth::check()) {
+            $user = Auth::user()->load('roles');
+            if ($user->admin_sn || $user->canAccessAdmin()) {
+                return $next($request);
+            }
         }
 
         return response()->json(['message' => 'Acceso no autorizado.'], 403);

@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class User extends Authenticatable
 {
@@ -90,5 +91,33 @@ class User extends Authenticatable
     public function socialAccounts(): HasMany
     {
         return $this->hasMany(UserSocialAccount::class);
+    }
+
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class, 'user_roles')
+                    ->withPivot('granted_by')
+                    ->withTimestamps();
+    }
+
+    public function hasRole(string $slug): bool
+    {
+        return $this->roles->contains('slug', $slug);
+    }
+
+    public function hasAnyRole(array $slugs): bool
+    {
+        return $this->roles->whereIn('slug', $slugs)->isNotEmpty();
+    }
+
+    // Roles que otorgan acceso al panel admin
+    public const ADMIN_ACCESS_ROLES = [
+        'configuraciones', 'gestor_contenido', 'gestor_eventos',
+        'gestor_tienda', 'moderador', 'de_la_casa', 'colaborador', 'artista',
+    ];
+
+    public function canAccessAdmin(): bool
+    {
+        return $this->admin_sn || $this->hasAnyRole(self::ADMIN_ACCESS_ROLES);
     }
 }

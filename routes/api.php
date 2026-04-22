@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\EncouragementShareController;
 use App\Http\Controllers\Api\EncouragementGeneratorController;
 use App\Http\Controllers\Api\AdminLanzamientoImportController;
 use App\Http\Controllers\Api\AdminPostImportController;
+use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\Shop\ShopCategoryController;
 use App\Http\Controllers\Api\Shop\ShopCheckoutController;
 use App\Http\Controllers\Api\Shop\ShopOrderController;
@@ -57,7 +58,7 @@ Route::post('encouragement/generate-context', [EncouragementGeneratorController:
 Route::post('encouragement/generate-prayer', [EncouragementGeneratorController::class, 'generatePrayer']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user()->load('socialAccounts');
+    return $request->user()->load('socialAccounts', 'roles');
 });
 Route::middleware('auth:sanctum')->put('/user', [AuthController::class, 'updateProfile']);
 
@@ -149,7 +150,7 @@ Route::get('hero-slides', [HeroSlideController::class, 'index']);
 Route::get('prayer-requests', [PrayerRequestController::class, 'index']);
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user()->load('socialAccounts');
+    return $request->user()->load('socialAccounts', 'roles');
 });
 Route::middleware('auth:sanctum')->put('/user', [AuthController::class, 'updateProfile']);
 
@@ -206,4 +207,15 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/lanzamientos/import', [AdminLanzamientoImportController::class, 'import']);
     Route::get('admin/posts/import/candidates', [AdminPostImportController::class, 'candidates']);
     Route::post('admin/posts/import', [AdminPostImportController::class, 'import']);
+
+    // Roles CRUD
+    Route::get('admin/roles', [RoleController::class, 'index']);
+    Route::post('admin/roles', [RoleController::class, 'store']);
+    Route::put('admin/roles/{role}', [RoleController::class, 'update']);
+    Route::delete('admin/roles/{role}', [RoleController::class, 'destroy']);
+
+    // Asignación de roles a usuarios
+    Route::get('admin/users/{user}/roles', [RoleController::class, 'userRoles']);
+    Route::post('admin/users/{user}/roles', [RoleController::class, 'assignRole']);
+    Route::delete('admin/users/{user}/roles/{role}', [RoleController::class, 'removeRole']);
 });
