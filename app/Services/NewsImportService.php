@@ -651,12 +651,16 @@ PROMPT;
 
     private function validateCandidatePayload(array $candidate): array
     {
-        $required = ['candidate_id', 'source_name', 'titulo', 'contenido', 'url_origen', 'source_published_at'];
+        $required = ['candidate_id', 'source_name', 'titulo', 'contenido', 'source_published_at'];
         foreach ($required as $field) {
             if (!array_key_exists($field, $candidate) || $candidate[$field] === null || $candidate[$field] === '') {
                 throw new RuntimeException("Falta el campo {$field}.");
             }
         }
+
+        $urlOrigen = isset($candidate['url_origen']) && $candidate['url_origen'] !== ''
+            ? trim((string) $candidate['url_origen'])
+            : null;
 
         return [
             'candidate_id' => (string) $candidate['candidate_id'],
@@ -664,7 +668,7 @@ PROMPT;
             'titulo' => Str::limit(trim((string) $candidate['titulo']), 255, ''),
             'contenido' => trim((string) $candidate['contenido']),
             'autor' => isset($candidate['autor']) ? trim((string) $candidate['autor']) : null,
-            'url_origen' => trim((string) $candidate['url_origen']),
+            'url_origen' => $urlOrigen,
             'image_remote_url' => $candidate['image_remote_url'] ?? null,
             'source_published_at' => (string) $candidate['source_published_at'],
             'warnings' => is_array($candidate['warnings'] ?? null) ? $candidate['warnings'] : [],

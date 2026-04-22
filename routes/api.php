@@ -209,6 +209,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/lanzamientos/import/candidates', [AdminLanzamientoImportController::class, 'candidates']);
     Route::post('admin/lanzamientos/import', [AdminLanzamientoImportController::class, 'import']);
     Route::get('admin/posts/import/candidates', [AdminPostImportController::class, 'candidates']);
+    Route::get('admin/posts/generate-candidates', [AdminPostImportController::class, 'generate']);
     Route::post('admin/posts/import', [AdminPostImportController::class, 'import']);
 
     // Roles CRUD
