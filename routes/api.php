@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\EncouragementGeneratorController;
 use App\Http\Controllers\Api\AdminLanzamientoImportController;
 use App\Http\Controllers\Api\AdminPostImportController;
 use App\Http\Controllers\Api\RoleController;
+use App\Http\Controllers\Api\ArtistaController;
 use App\Http\Controllers\Api\MediaFileController;
 use App\Http\Controllers\Api\AdminMediaController;
 use App\Http\Controllers\Api\Shop\ShopCategoryController;
@@ -221,11 +222,19 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/users/{user}/roles', [RoleController::class, 'assignRole']);
     Route::delete('admin/users/{user}/roles/{role}', [RoleController::class, 'removeRole']);
 
+    // Vinculación artista ↔ usuario
+    Route::post('admin/users/{user}/artista', [UserController::class, 'assignArtista']);
+    Route::delete('admin/users/{user}/artista', [UserController::class, 'removeArtista']);
+
     // Multimedia — vista admin
     Route::get('admin/media', [AdminMediaController::class, 'index']);
     Route::patch('admin/media/{mediaFile}/downloadable', [AdminMediaController::class, 'toggleDownloadable']);
     Route::delete('admin/media/{mediaFile}', [AdminMediaController::class, 'destroy']);
 });
+
+// Mi perfil de artista
+Route::middleware('auth:sanctum')->get('me/artista', [ArtistaController::class, 'myArtista']);
+Route::middleware('auth:sanctum')->post('me/artista', [ArtistaController::class, 'updateMyArtista']);
 
 // Multimedia — categorías (público)
 Route::get('media/categories', [MediaFileController::class, 'categories']);

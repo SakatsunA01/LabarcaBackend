@@ -15,6 +15,7 @@ class Artista extends Model
 
     // Campos que se pueden asignar masivamente
     protected $fillable = [
+        'user_id',
         'name',
         'vinculacion',
         'imageUrl',

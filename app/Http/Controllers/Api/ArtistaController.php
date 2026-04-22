@@ -11,13 +11,53 @@ use Illuminate\Support\Facades\Storage;
 
 class ArtistaController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
         $artistas = Artista::with('categories')->orderBy('name')->get();
         return response()->json($artistas);
+    }
+
+    // Artista vinculado al usuario autenticado
+    public function myArtista(Request $request)
+    {
+        $artista = Artista::with('categories')->where('user_id', $request->user()->id)->first();
+        if (!$artista) {
+            return response()->json(['message' => 'No tenés un perfil de artista vinculado.'], 404);
+        }
+        return response()->json($artista);
+    }
+
+    // Actualizar propio perfil de artista
+    public function updateMyArtista(Request $request)
+    {
+        $artista = Artista::where('user_id', $request->user()->id)->first();
+        if (!$artista) {
+            return response()->json(['message' => 'No tenés un perfil de artista vinculado.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), $this->validationRules(true));
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 400);
+        }
+
+        $data = $request->except(['imageUrl', 'heroImageUrl', 'secondaryImageUrl', '_method', 'category_ids', 'user_id']);
+
+        if ($request->has('category_ids')) {
+            $categoryIds = $this->parseCategoryIds($request->input('category_ids'));
+            if (is_null($categoryIds)) {
+                return response()->json(['category_ids' => ['Formato inválido']], 400);
+            }
+            $artista->categories()->sync($categoryIds);
+        }
+
+        foreach (['imageUrl', 'heroImageUrl', 'secondaryImageUrl'] as $field) {
+            if ($request->hasFile($field)) {
+                $data[$field] = $this->handleImageUpload($request, $field, $artista->$field);
+            }
+        }
+
+        $artista->update($data);
+        return response()->json($artista->load('categories'));
     }
 
     /**

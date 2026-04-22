@@ -93,6 +93,11 @@ class User extends Authenticatable
         return $this->hasMany(UserSocialAccount::class);
     }
 
+    public function artista(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(\App\Models\Artista::class);
+    }
+
     public function mediaFiles(): HasMany
     {
         return $this->hasMany(MediaFile::class);

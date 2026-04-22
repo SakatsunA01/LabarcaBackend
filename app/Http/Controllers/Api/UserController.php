@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Artista;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -14,9 +15,36 @@ class UserController extends Controller
      */
     public function index()
     {
-        // Eager load prayer requests count to potentially show user activity
-        $users = User::withCount('prayerRequests')->get();
+        $users = User::withCount('prayerRequests')
+            ->with(['roles', 'artista:id,user_id,name,imageUrl'])
+            ->get();
         return response()->json($users);
+    }
+
+    // Vincular un artista a un usuario (admin)
+    public function assignArtista(Request $request, User $user)
+    {
+        $request->validate(['artista_id' => 'required|exists:artistas,id']);
+
+        $artista = Artista::findOrFail($request->artista_id);
+
+        if ($artista->user_id && $artista->user_id !== $user->id) {
+            return response()->json(['message' => 'Este artista ya está vinculado a otro usuario.'], 422);
+        }
+
+        // Desvincular artista anterior de este usuario
+        Artista::where('user_id', $user->id)->update(['user_id' => null]);
+
+        $artista->update(['user_id' => $user->id]);
+
+        return response()->json($user->load(['roles', 'artista:id,user_id,name,imageUrl']));
+    }
+
+    // Desvincular artista de un usuario (admin)
+    public function removeArtista(User $user)
+    {
+        Artista::where('user_id', $user->id)->update(['user_id' => null]);
+        return response()->json($user->load(['roles', 'artista:id,user_id,name,imageUrl']));
     }
 
     /**
