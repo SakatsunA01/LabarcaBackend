@@ -19,7 +19,7 @@ class MediaFile extends Model
         'file_size' => 'integer',
     ];
 
-    protected $appends = ['url', 'file_size_formatted'];
+    protected $appends = ['url', 'file_size_formatted', 'mime_group'];
 
     public function user(): BelongsTo
     {
@@ -45,11 +45,11 @@ class MediaFile extends Model
         return round($bytes / 1073741824, 2) . ' GB';
     }
 
-    public function getMimeGroup(): string
+    public function getMimeGroupAttribute(): string
     {
-        if (str_starts_with($this->mime_type, 'image/')) return 'image';
-        if (str_starts_with($this->mime_type, 'audio/')) return 'audio';
-        if (str_starts_with($this->mime_type, 'video/')) return 'video';
+        if (str_starts_with($this->mime_type ?? '', 'image/')) return 'image';
+        if (str_starts_with($this->mime_type ?? '', 'audio/')) return 'audio';
+        if (str_starts_with($this->mime_type ?? '', 'video/')) return 'video';
         return 'file';
     }
 }
