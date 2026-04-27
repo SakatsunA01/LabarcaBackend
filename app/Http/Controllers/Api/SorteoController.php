@@ -411,6 +411,11 @@ class SorteoController extends Controller
 
     private function isUserEligible(User $user, Sorteo $sorteo, ?array $registrationRule, ?array $ticketRule, array $ticketUserLookup): bool
     {
+        // Admins are never eligible for sorteos
+        if ($user->admin_sn ?? false) {
+            return false;
+        }
+
         if ($user->created_at && $user->created_at->greaterThan($sorteo->fecha_limite)) {
             return false;
         }

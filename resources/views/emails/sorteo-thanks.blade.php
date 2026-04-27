@@ -49,7 +49,8 @@
                 @php
                   $type = $req['type'] ?? '';
                   $data = $req['data'] ?? [];
-                  if ($type === 'custom_text') $label = $data['text'] ?? 'Requisito';
+                  if ($type === 'registrado') $label = 'Registrado en la web';
+                  elseif ($type === 'custom_text') $label = $data['text'] ?? 'Requisito';
                   elseif ($type === 'ticket_purchase') $label = 'Compra de entrada';
                   elseif ($type === 'registration_schedule') $label = 'Registro en horario';
                   elseif ($type === 'open_link') $label = $data['title'] ?? 'Seguir en redes';
