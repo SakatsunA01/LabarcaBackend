@@ -14,10 +14,12 @@ class SorteoParticipant extends Model
         'user_id',
         'is_manual',
         'added_by',
+        'excluded',
     ];
 
     protected $casts = [
         'is_manual' => 'boolean',
+        'excluded'  => 'boolean',
     ];
 
     public function sorteo()

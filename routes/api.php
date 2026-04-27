@@ -120,6 +120,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('ticket-orders/{id}', [TicketOrderController::class, 'show']);
     Route::post('encouragement/share-email', [EncouragementShareController::class, 'sendToAuthenticatedUser']);
     Route::post('sorteos/{sorteo}/participate', [SorteoController::class, 'participate']);
+    Route::get('sorteos/{sorteo}/my-participation', [SorteoController::class, 'myParticipation']);
 });
 
 // Rutas para Testimonios de Eventos

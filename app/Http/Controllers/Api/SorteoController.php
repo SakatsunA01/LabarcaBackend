@@ -111,53 +111,64 @@ class SorteoController extends Controller
 
     public function users(Request $request, Sorteo $sorteo)
     {
-        $records = SorteoParticipant::where('sorteo_id', $sorteo->id)->get();
-        $manualLookup = [];
-        $excludedLookup = [];
-        foreach ($records as $rec) {
-            if ($rec->excluded) {
-                $excludedLookup[$rec->user_id] = true;
-            } else {
-                $manualLookup[$rec->user_id] = true;
-            }
-        }
+        // Build lookup from explicit SorteoParticipant records
+        $records = SorteoParticipant::where('sorteo_id', $sorteo->id)
+            ->with('user:id,name,email,admin_sn,created_at')
+            ->get();
+
+        $participantRecords = $records->where('excluded', false)->keyBy('user_id');
+        $excludedRecords    = $records->where('excluded', true)->keyBy('user_id');
 
         [$registrationRule, $ticketRule] = $this->extractRules($sorteo);
         $ticketUserLookup = $this->buildTicketUserLookup($sorteo, $ticketRule);
         $eligibleOnly = $request->boolean('eligible_only');
 
-        $users = User::select('id', 'name', 'email', 'created_at', 'admin_sn')
-            ->orderBy('name')
-            ->get();
-
-        $result = [];
-        foreach ($users as $user) {
-            $isExcluded = isset($excludedLookup[$user->id]);
-            $isParticipant = isset($manualLookup[$user->id]);
-            $eligible = !$isExcluded && $this->isUserEligible($user, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup);
-            $isCandidate = $eligible || $isParticipant;
-
-            if ($eligibleOnly && !$isCandidate) {
-                continue;
-            }
-
-            // Only show users who are relevant (participant, eligible, or excluded)
-            if (!$isParticipant && !$eligible && !$isExcluded) {
-                continue;
-            }
-
-            $result[] = [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'created_at' => $user->created_at?->toISOString(),
-                'eligible' => $eligible,
-                'is_participant' => $isParticipant,
-                'excluded' => $isExcluded,
+        // Left panel: explicit participants + excluded
+        $leftPanel = [];
+        foreach ($records as $rec) {
+            if (!$rec->user) continue;
+            $leftPanel[$rec->user_id] = [
+                'id'             => $rec->user->id,
+                'name'           => $rec->user->name,
+                'email'          => $rec->user->email,
+                'eligible'       => false,
+                'is_participant' => !$rec->excluded,
+                'excluded'       => (bool) $rec->excluded,
+                'added_by'       => $rec->added_by,
             ];
         }
 
-        return response()->json($result);
+        // Right panel: all other users (not in sorteo_participants), with eligibility hint
+        $allUsers = User::select('id', 'name', 'email', 'created_at', 'admin_sn')
+            ->whereNotIn('id', $records->pluck('user_id')->all())
+            ->orderBy('name')
+            ->get();
+
+        $rightPanel = [];
+        foreach ($allUsers as $user) {
+            $eligible = $this->isUserEligible($user, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup);
+
+            if ($eligibleOnly && !$eligible) {
+                continue;
+            }
+
+            $rightPanel[] = [
+                'id'             => $user->id,
+                'name'           => $user->name,
+                'email'          => $user->email,
+                'eligible'       => $eligible,
+                'is_participant' => false,
+                'excluded'       => false,
+                'added_by'       => null,
+            ];
+        }
+
+        // For eligible_only (used by close animation), return explicit participants
+        if ($eligibleOnly) {
+            return response()->json(array_values(array_filter($leftPanel, fn ($u) => $u['is_participant'])));
+        }
+
+        return response()->json(array_merge(array_values($leftPanel), $rightPanel));
     }
 
     public function addParticipants(Request $request, Sorteo $sorteo)
@@ -239,14 +250,63 @@ class SorteoController extends Controller
         if (!$user) return response()->json(['message' => 'No autorizado.'], 401);
         if ($sorteo->estado === 'cerrado') return response()->json(['message' => 'El sorteo ya cerró.'], 422);
 
-        $validator = Validator::make($request->all(), [
-            'completed_requirements' => 'nullable|array',
-        ]);
-        if ($validator->fails()) return response()->json($validator->errors(), 422);
+        // Check if already excluded
+        $excluded = SorteoParticipant::where('sorteo_id', $sorteo->id)
+            ->where('user_id', $user->id)
+            ->where('excluded', true)
+            ->exists();
+        if ($excluded) {
+            return response()->json(['message' => 'No podés participar en este sorteo.'], 403);
+        }
+
+        // Verify requirements that can be checked server-side
+        $requirements = $sorteo->requisitos ?? [];
+        foreach ($requirements as $req) {
+            $type = $req['type'] ?? null;
+            $data = $req['data'] ?? [];
+
+            if ($type === 'ticket_purchase') {
+                $mode = $data['mode'] ?? 'any';
+                $eventId = $data['event_id'] ?? null;
+                $query = \App\Models\TicketOrder::where('status', 'approved')
+                    ->where('user_id', $user->id)
+                    ->where('created_at', '<=', $sorteo->fecha_limite);
+                if ($mode === 'event' && $eventId) {
+                    $query->where('event_id', $eventId);
+                }
+                if (!$query->exists()) {
+                    return response()->json(['message' => 'No cumplís el requisito de compra de entrada.'], 422);
+                }
+            }
+
+            if ($type === 'registration_schedule') {
+                $days = $data['days'] ?? [];
+                $start = $data['start_time'] ?? null;
+                $end = $data['end_time'] ?? null;
+                $createdAt = $user->created_at ? \Illuminate\Support\Carbon::parse($user->created_at) : null;
+
+                if (!$createdAt) {
+                    return response()->json(['message' => 'No cumplís el requisito de registro en horario.'], 422);
+                }
+                if (is_array($days) && count($days) > 0) {
+                    $dayName = strtolower($createdAt->format('l'));
+                    if (!in_array($dayName, $days, true)) {
+                        return response()->json(['message' => 'No cumplís el requisito de registro en el día indicado.'], 422);
+                    }
+                }
+                if ($start && $end) {
+                    $time = $createdAt->format('H:i');
+                    $inRange = ($start <= $end) ? ($time >= $start && $time <= $end) : ($time >= $start || $time <= $end);
+                    if (!$inRange) {
+                        return response()->json(['message' => 'No cumplís el requisito de registro en el horario indicado.'], 422);
+                    }
+                }
+            }
+        }
 
         SorteoParticipant::updateOrCreate(
             ['sorteo_id' => $sorteo->id, 'user_id' => $user->id],
-            ['is_manual' => true, 'added_by' => $user->id]
+            ['is_manual' => true, 'excluded' => false, 'added_by' => $user->id]
         );
 
         return response()->json(['message' => 'Registrado como participante.']);
@@ -360,37 +420,32 @@ class SorteoController extends Controller
 
     private function buildPublicParticipants(Sorteo $sorteo, int $limit = 30): array
     {
-        $excludedLookup = $this->buildExcludedLookup($sorteo);
-        $manualIds = SorteoParticipant::where('sorteo_id', $sorteo->id)
+        $records = SorteoParticipant::where('sorteo_id', $sorteo->id)
             ->where('excluded', false)
-            ->pluck('user_id')
+            ->with('user:id,name')
+            ->get();
+
+        $count = $records->count();
+        $preview = $records->take($limit)
+            ->map(fn ($r) => $r->user?->name)
+            ->filter()
+            ->values()
             ->all();
-        $manualLookup = array_fill_keys($manualIds, true);
-
-        [$registrationRule, $ticketRule] = $this->extractRules($sorteo);
-        $ticketUserLookup = $this->buildTicketUserLookup($sorteo, $ticketRule);
-
-        $count = 0;
-        $preview = [];
-
-        User::select('id', 'name', 'created_at')
-            ->orderBy('id')
-            ->chunkById(500, function ($users) use (&$count, &$preview, $limit, $manualLookup, $excludedLookup, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup) {
-                foreach ($users as $user) {
-                    if (isset($excludedLookup[$user->id])) continue;
-                    $isParticipant = isset($manualLookup[$user->id]);
-                    $eligible = $this->isUserEligible($user, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup);
-                    if (!$eligible && !$isParticipant) {
-                        continue;
-                    }
-                    $count++;
-                    if (count($preview) < $limit) {
-                        $preview[] = $user->name;
-                    }
-                }
-            });
 
         return ['count' => $count, 'preview' => $preview];
+    }
+
+    public function myParticipation(Request $request, Sorteo $sorteo)
+    {
+        $user = $request->user();
+        $record = SorteoParticipant::where('sorteo_id', $sorteo->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        return response()->json([
+            'is_participant' => $record && !$record->excluded,
+            'is_excluded'    => $record && $record->excluded,
+        ]);
     }
 
     private function extractRules(Sorteo $sorteo): array
@@ -490,47 +545,24 @@ class SorteoController extends Controller
 
     private function pickWinner(Sorteo $sorteo): ?User
     {
-        $excludedLookup = $this->buildExcludedLookup($sorteo);
-        $manualIds = SorteoParticipant::where('sorteo_id', $sorteo->id)
+        // Winner is picked only from explicit participants (not auto-eligible)
+        $participantIds = SorteoParticipant::where('sorteo_id', $sorteo->id)
             ->where('excluded', false)
             ->pluck('user_id')
             ->all();
-        $manualLookup = array_fill_keys($manualIds, true);
 
-        [$registrationRule, $ticketRule] = $this->extractRules($sorteo);
-        $ticketUserLookup = $this->buildTicketUserLookup($sorteo, $ticketRule);
+        if (empty($participantIds)) {
+            return null;
+        }
 
         $winnerId = null;
         $seen = 0;
-
-        foreach ($manualIds as $userId) {
+        foreach ($participantIds as $userId) {
             $seen++;
             if (random_int(1, $seen) === 1) {
                 $winnerId = $userId;
             }
         }
-
-        $query = User::query()->select('id', 'created_at');
-        if (!empty($ticketUserLookup)) {
-            $query->whereIn('id', array_keys($ticketUserLookup));
-        }
-        $query->where('created_at', '<=', $sorteo->fecha_limite);
-
-        $query->orderBy('id')
-            ->chunkById(500, function ($users) use (&$winnerId, &$seen, $manualLookup, $excludedLookup, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup) {
-                foreach ($users as $user) {
-                    if (isset($manualLookup[$user->id]) || isset($excludedLookup[$user->id])) {
-                        continue;
-                    }
-                    if (!$this->isUserEligible($user, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup)) {
-                        continue;
-                    }
-                    $seen++;
-                    if (random_int(1, $seen) === 1) {
-                        $winnerId = $user->id;
-                    }
-                }
-            });
 
         return $winnerId ? User::find($winnerId) : null;
     }
