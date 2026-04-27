@@ -119,6 +119,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('ticket-orders', [TicketOrderController::class, 'index']);
     Route::get('ticket-orders/{id}', [TicketOrderController::class, 'show']);
     Route::post('encouragement/share-email', [EncouragementShareController::class, 'sendToAuthenticatedUser']);
+    Route::post('sorteos/{sorteo}/participate', [SorteoController::class, 'participate']);
 });
 
 // Rutas para Testimonios de Eventos
@@ -195,6 +196,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/sorteos/{sorteo}/users', [SorteoController::class, 'users']);
     Route::post('admin/sorteos/{sorteo}/participants', [SorteoController::class, 'addParticipants']);
     Route::post('admin/sorteos/{sorteo}/close', [SorteoController::class, 'close']);
+    Route::delete('admin/sorteos/{sorteo}/participants/{user}', [SorteoController::class, 'removeParticipant']);
+    Route::get('admin/sorteos/{sorteo}/thanks-email-preview', [SorteoController::class, 'thankEmailPreview']);
+    Route::post('admin/sorteos/{sorteo}/send-thanks-email', [SorteoController::class, 'sendThankEmail']);
     Route::get('admin/promo-video', [PromoVideoController::class, 'showAdmin']);
     Route::post('admin/promo-video', [PromoVideoController::class, 'update']);
     Route::get('admin/promo-inquiries', [PromoInquiryController::class, 'index']);

@@ -49,6 +49,9 @@ class SorteoController extends Controller
 
         $data = $request->except(['premio_imagen_url']);
         $data['requisitos'] = $this->normalizeRequirements($request->input('requisitos'));
+        if ($request->has('bendiciones')) {
+            $data['bendiciones'] = $this->normalizeRequirements($request->input('bendiciones'));
+        }
         $data['created_by'] = $request->user()?->id;
 
         if ($request->hasFile('premio_imagen_url')) {
@@ -79,6 +82,9 @@ class SorteoController extends Controller
         $data = $request->except(['premio_imagen_url', '_method']);
         if ($request->has('requisitos')) {
             $data['requisitos'] = $this->normalizeRequirements($request->input('requisitos'));
+        }
+        if ($request->has('bendiciones')) {
+            $data['bendiciones'] = $this->normalizeRequirements($request->input('bendiciones'));
         }
 
         if ($request->hasFile('premio_imagen_url')) {
@@ -203,6 +209,86 @@ class SorteoController extends Controller
             ],
             'sorteo' => $this->formatSorteo($sorteo->fresh('ganador')),
         ]);
+    }
+
+    public function removeParticipant(Request $request, Sorteo $sorteo, User $user)
+    {
+        SorteoParticipant::where('sorteo_id', $sorteo->id)
+            ->where('user_id', $user->id)
+            ->delete();
+        return response()->json(['message' => 'Participante removido.']);
+    }
+
+    public function participate(Request $request, Sorteo $sorteo)
+    {
+        $user = $request->user();
+        if (!$user) return response()->json(['message' => 'No autorizado.'], 401);
+        if ($sorteo->estado === 'cerrado') return response()->json(['message' => 'El sorteo ya cerró.'], 422);
+
+        $validator = Validator::make($request->all(), [
+            'completed_requirements' => 'nullable|array',
+        ]);
+        if ($validator->fails()) return response()->json($validator->errors(), 422);
+
+        SorteoParticipant::updateOrCreate(
+            ['sorteo_id' => $sorteo->id, 'user_id' => $user->id],
+            ['is_manual' => true, 'added_by' => $user->id]
+        );
+
+        return response()->json(['message' => 'Registrado como participante.']);
+    }
+
+    public function thankEmailPreview(Request $request, Sorteo $sorteo)
+    {
+        $participants = $this->buildPublicParticipants($sorteo);
+        return response()->json([
+            'sorteo_nombre' => $sorteo->nombre,
+            'premio' => $sorteo->premio,
+            'premio_imagen_url' => $sorteo->premio_imagen_url,
+            'requisitos' => $sorteo->requisitos ?? [],
+            'participants_count' => $participants['count'],
+            'html_preview' => $this->renderThankEmailHtml($sorteo),
+        ]);
+    }
+
+    public function sendThankEmail(Request $request, Sorteo $sorteo)
+    {
+        $validator = Validator::make($request->all(), [
+            'test_email' => 'nullable|email',
+        ]);
+        if ($validator->fails()) return response()->json($validator->errors(), 422);
+
+        $testEmail = $request->input('test_email');
+
+        if ($testEmail) {
+            \Mail::to($testEmail)->send(new \App\Mail\SorteoThanksEmail($sorteo, null));
+            return response()->json(['message' => 'Email de prueba enviado a ' . $testEmail]);
+        }
+
+        // Send to all participants
+        $manualIds = SorteoParticipant::where('sorteo_id', $sorteo->id)->pluck('user_id')->all();
+        $manualLookup = array_fill_keys($manualIds, true);
+        [$registrationRule, $ticketRule] = $this->extractRules($sorteo);
+        $ticketUserLookup = $this->buildTicketUserLookup($sorteo, $ticketRule);
+
+        $count = 0;
+        User::select('id', 'name', 'email', 'created_at')->orderBy('id')
+            ->chunkById(200, function ($users) use ($sorteo, $manualLookup, $registrationRule, $ticketRule, $ticketUserLookup, &$count) {
+                foreach ($users as $user) {
+                    $isParticipant = isset($manualLookup[$user->id]);
+                    $eligible = $this->isUserEligible($user, $sorteo, $registrationRule, $ticketRule, $ticketUserLookup);
+                    if (!$eligible && !$isParticipant) continue;
+                    \Mail::to($user->email)->send(new \App\Mail\SorteoThanksEmail($sorteo, $user));
+                    $count++;
+                }
+            });
+
+        return response()->json(['message' => "Email enviado a {$count} participantes."]);
+    }
+
+    private function renderThankEmailHtml(Sorteo $sorteo): string
+    {
+        return view('emails.sorteo-thanks', ['sorteo' => $sorteo, 'user' => null])->render();
     }
 
     private function formatSorteo(Sorteo $sorteo): array

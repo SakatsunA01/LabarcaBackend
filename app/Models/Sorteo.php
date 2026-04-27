@@ -21,6 +21,7 @@ class Sorteo extends Model
         'ganador_snapshot',
         'closed_at',
         'created_by',
+        'bendiciones',
     ];
 
     protected $casts = [
@@ -28,6 +29,7 @@ class Sorteo extends Model
         'closed_at' => 'datetime',
         'requisitos' => 'array',
         'ganador_snapshot' => 'array',
+        'bendiciones' => 'array',
     ];
 
     public function ganador()
