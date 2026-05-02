@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\TicketCheckoutController;
 use App\Http\Controllers\Api\TicketOrderController;
 use App\Http\Controllers\Api\AdminTicketOrderController;
+use App\Http\Controllers\Api\AdminEventBuyersController;
 use App\Http\Controllers\Api\SorteoController;
 use App\Http\Controllers\Api\TicketVerificationController;
 use App\Http\Controllers\Api\SocialAuthController;
@@ -183,6 +184,9 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::delete('admin/prayer-requests/{id}', [PrayerRequestController::class, 'destroy']);
     Route::apiResource('admin/users', UserController::class)->except(['show', 'store']);
     Route::get('admin/ticket-orders', [AdminTicketOrderController::class, 'index']);
+    Route::get('admin/eventos/{evento}/buyers', [AdminEventBuyersController::class, 'index']);
+    Route::post('admin/eventos/{evento}/buyers', [AdminEventBuyersController::class, 'store']);
+    Route::delete('admin/eventos/{evento}/buyers/{buyer}', [AdminEventBuyersController::class, 'destroy']);
     Route::get('admin/ticket-orders/{id}', [AdminTicketOrderController::class, 'show']);
     Route::post('admin/ticket-orders/{id}/approve-cash', [AdminTicketOrderController::class, 'approveCash']);
     Route::post('admin/ticket-orders/{id}/reject-cash', [AdminTicketOrderController::class, 'rejectCash']);
