@@ -190,6 +190,7 @@ class SorteoController extends Controller
                     'sorteo_id' => $sorteo->id,
                     'user_id' => $userId,
                     'is_manual' => true,
+                    'excluded' => false,
                     'added_by' => $request->user()?->id,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -211,27 +212,85 @@ class SorteoController extends Controller
             return response()->json(['message' => 'El sorteo ya fue cerrado.'], 422);
         }
 
-        $winner = $this->pickWinner($sorteo);
-        if (!$winner) {
+        $prizes = $this->getPrizeList($sorteo);
+        $winners = [];
+        $usedIds = [];
+
+        foreach ($prizes as $index => $prizeName) {
+            $winner = $this->pickWinnerExcluding($sorteo, $usedIds);
+            if (!$winner) break;
+            $usedIds[] = $winner['id'];
+            $winners[] = [
+                'position' => $index + 1,
+                'prize'    => $prizeName,
+                'user_id'  => $winner['id'],
+                'name'     => $winner['name'],
+                'email'    => $winner['email'],
+            ];
+        }
+
+        if (empty($winners)) {
             return response()->json(['message' => 'No hay participantes para cerrar el sorteo.'], 422);
         }
 
+        $first = $winners[0];
         $sorteo->estado = 'cerrado';
         $sorteo->closed_at = now();
-        $sorteo->ganador_user_id = $winner->id;
-        $sorteo->ganador_snapshot = [
-            'name' => $winner->name,
-            'email' => $winner->email,
-        ];
+        $sorteo->ganador_user_id = $first['user_id'];
+        $sorteo->ganador_snapshot = ['name' => $first['name'], 'email' => $first['email']];
+        $sorteo->winners = $winners;
         $sorteo->save();
 
         return response()->json([
-            'winner' => [
-                'id' => $winner->id,
-                'name' => $winner->name,
-                'email' => $winner->email,
-            ],
-            'sorteo' => $this->formatSorteo($sorteo->fresh('ganador')),
+            'winners' => $winners,
+            'sorteo'  => $this->formatSorteo($sorteo->fresh('ganador')),
+        ]);
+    }
+
+    public function redraw(Request $request, Sorteo $sorteo)
+    {
+        $validator = Validator::make($request->all(), [
+            'position' => 'required|integer|min:1',
+        ]);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
+        }
+
+        $position = (int) $request->input('position');
+        $currentWinners = $sorteo->winners ?? [];
+
+        // Exclude everyone except the slot being re-drawn
+        $excludeIds = collect($currentWinners)
+            ->filter(fn ($w) => $w['position'] !== $position)
+            ->pluck('user_id')
+            ->all();
+
+        $newWinner = $this->pickWinnerExcluding($sorteo, $excludeIds);
+        if (!$newWinner) {
+            return response()->json(['message' => 'No hay más participantes disponibles para este premio.'], 422);
+        }
+
+        $updatedWinners = collect($currentWinners)->map(function ($w) use ($position, $newWinner) {
+            if ((int) $w['position'] === $position) {
+                return array_merge($w, [
+                    'user_id' => $newWinner['id'],
+                    'name'    => $newWinner['name'],
+                    'email'   => $newWinner['email'],
+                ]);
+            }
+            return $w;
+        })->values()->all();
+
+        if ($position === 1) {
+            $sorteo->ganador_user_id = $newWinner['id'];
+            $sorteo->ganador_snapshot = ['name' => $newWinner['name'], 'email' => $newWinner['email']];
+        }
+        $sorteo->winners = $updatedWinners;
+        $sorteo->save();
+
+        return response()->json([
+            'winner'  => array_merge(['position' => $position], $newWinner),
+            'winners' => $updatedWinners,
         ]);
     }
 
@@ -373,6 +432,7 @@ class SorteoController extends Controller
         $data['ganador'] = $winner
             ? ['name' => $winner->name, 'email' => $winner->email]
             : ($snapshot ? ['name' => $snapshot['name'] ?? null, 'email' => $snapshot['email'] ?? null] : null);
+        $data['winners'] = $sorteo->winners ?? [];
 
         return $data;
     }
@@ -543,12 +603,22 @@ class SorteoController extends Controller
         return true;
     }
 
-    private function pickWinner(Sorteo $sorteo): ?User
+    private function getPrizeList(Sorteo $sorteo): array
     {
-        // Winner is picked only from explicit participants (not auto-eligible)
+        $prizes = [$sorteo->premio];
+        foreach ($sorteo->bendiciones ?? [] as $b) {
+            $prizes[] = is_array($b) ? ($b['nombre'] ?? 'Bendicion') : (string) $b;
+        }
+        return $prizes;
+    }
+
+    private function pickWinnerExcluding(Sorteo $sorteo, array $excludeIds): ?array
+    {
         $participantIds = SorteoParticipant::where('sorteo_id', $sorteo->id)
             ->where('excluded', false)
             ->pluck('user_id')
+            ->filter(fn ($id) => !in_array($id, $excludeIds, true))
+            ->values()
             ->all();
 
         if (empty($participantIds)) {
@@ -564,7 +634,9 @@ class SorteoController extends Controller
             }
         }
 
-        return $winnerId ? User::find($winnerId) : null;
+        if (!$winnerId) return null;
+        $user = User::find($winnerId);
+        return $user ? ['id' => $user->id, 'name' => $user->name, 'email' => $user->email] : null;
     }
 
     private function deleteFile(?string $filePath): void

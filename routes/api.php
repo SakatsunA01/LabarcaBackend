@@ -197,6 +197,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('admin/sorteos/{sorteo}/users', [SorteoController::class, 'users']);
     Route::post('admin/sorteos/{sorteo}/participants', [SorteoController::class, 'addParticipants']);
     Route::post('admin/sorteos/{sorteo}/close', [SorteoController::class, 'close']);
+    Route::post('admin/sorteos/{sorteo}/redraw', [SorteoController::class, 'redraw']);
     Route::delete('admin/sorteos/{sorteo}/participants/{user}', [SorteoController::class, 'removeParticipant']);
     Route::get('admin/sorteos/{sorteo}/thanks-email-preview', [SorteoController::class, 'thankEmailPreview']);
     Route::post('admin/sorteos/{sorteo}/send-thanks-email', [SorteoController::class, 'sendThankEmail']);
