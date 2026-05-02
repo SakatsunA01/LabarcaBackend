@@ -10,6 +10,7 @@ class Sorteo extends Model
     use HasFactory;
 
     protected $fillable = [
+        'event_id',
         'nombre',
         'premio',
         'premio_imagen_url',
