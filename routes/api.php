@@ -203,6 +203,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('admin/sorteos/{sorteo}/close', [SorteoController::class, 'close']);
     Route::post('admin/sorteos/{sorteo}/redraw', [SorteoController::class, 'redraw']);
     Route::delete('admin/sorteos/{sorteo}/participants/{user}', [SorteoController::class, 'removeParticipant']);
+    Route::post('admin/sorteos/{sorteo}/guests', [SorteoController::class, 'addGuest']);
+    Route::delete('admin/sorteos/{sorteo}/guests/{guest}', [SorteoController::class, 'removeGuest']);
     Route::get('admin/sorteos/{sorteo}/thanks-email-preview', [SorteoController::class, 'thankEmailPreview']);
     Route::post('admin/sorteos/{sorteo}/send-thanks-email', [SorteoController::class, 'sendThankEmail']);
     Route::get('admin/promo-video', [PromoVideoController::class, 'showAdmin']);
